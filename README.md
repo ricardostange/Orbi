@@ -13,7 +13,8 @@ Cada build bem-sucedido da branch `main` publica uma Release com o APK assinado.
 ## Implementado
 
 - Ativação como assistente padrão via ACTION_ASSIST / VOICE_ASSIST.
-- Interface com um botão Falar e descrição inicial dos comandos.
+- Interface com botão Falar, descrição inicial dos comandos e Configurar API.
+- Configuração local da chave DeepSeek: salvar, substituir e remover; armazenamento AES-GCM com chave no Android Keystore. A conexão ao modelo ainda não está implementada.
 - Entrada por voz pelo serviço do celular; diga ajuda para rever os comandos.
 - Resposta por TextToSpeech do Android.
 - Anotar, listar e remover notas locais por correspondência exata.

@@ -1,6 +1,8 @@
 package br.com.assistente.teste;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.text.InputType;
 import android.content.*;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -57,6 +59,11 @@ public class MainActivity extends Activity {
         speak.setMinHeight(dp(56));
         root.addView(speak,buttonParams);
         speak.setOnClickListener(v->listen());
+        Button settings=new Button(this);
+        settings.setText("Configurar API");
+        settings.setAllCaps(false);
+        root.addView(settings,new LinearLayout.LayoutParams(-1,-2));
+        settings.setOnClickListener(v->configureApi());
         setContentView(root);
         tts=new TextToSpeech(this,result->{
             if(result==TextToSpeech.SUCCESS){int lang=tts.setLanguage(new Locale("pt","BR"));ttsReady=lang>=0;if(ttsReady&&pendingSpeech!=null&&!listening){say(pendingSpeech);pendingSpeech=null;}}
@@ -69,6 +76,55 @@ public class MainActivity extends Activity {
         if(saved==null && assist(getIntent()))root.post(()->listen());
     }
     @Override protected void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);if(assist(i))listen();}
+    private void configureApi(){
+        if(tts!=null)tts.stop();
+        pendingSpeech=null;
+        final ApiKeyStore store=new ApiKeyStore(this);
+        LinearLayout content=new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24),dp(8),dp(24),0);
+        TextView info=new TextView(this);
+        info.setText((store.hasKey()?"Chave salva. Cole outra para substituir.":"Cole sua chave de API do DeepSeek.")
+            + "\nA chave fica criptografada neste celular. A conexão com o DeepSeek ainda não está ativa.");
+        content.addView(info);
+        EditText keyInput=new EditText(this);
+        keyInput.setHint("Chave de API");
+        keyInput.setSingleLine(true);
+        keyInput.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        keyInput.setSaveEnabled(false);
+        if(Build.VERSION.SDK_INT>=26)keyInput.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+        content.addView(keyInput,new LinearLayout.LayoutParams(-1,-2));
+        AlertDialog dialog=new AlertDialog.Builder(this)
+            .setTitle("DeepSeek")
+            .setView(content)
+            .setPositiveButton("Salvar",null)
+            .setNegativeButton("Cancelar",null)
+            .setNeutralButton("Remover chave",null)
+            .create();
+        dialog.setOnDismissListener(d->keyInput.getText().clear());
+        dialog.setOnShowListener(d->{
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(store.hasKey());
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+                String value=keyInput.getText().toString().trim();
+                if(value.isEmpty()){keyInput.setError("Cole uma chave para salvar.");return;}
+                if(value.matches("(?s).*\\s.*")){keyInput.setError("A chave não deve conter espaços ou quebras de linha.");return;}
+                try{
+                    store.save(value);
+                    Toast.makeText(this,"Chave salva neste celular.",Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                }catch(Exception e){keyInput.setError("Não foi possível salvar. Tente novamente.");}
+            });
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
+                try{
+                    store.remove();
+                    Toast.makeText(this,"Chave removida.",Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                }catch(Exception e){keyInput.setError("Não foi possível remover. Tente novamente.");}
+            });
+        });
+        dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        dialog.show();
+    }
     private void show(String message){
         answer.setText(message);
         scroll.post(()->scroll.scrollTo(0,0));
