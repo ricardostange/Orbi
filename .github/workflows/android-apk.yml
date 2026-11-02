@@ -26,13 +26,13 @@ jobs:
       - name: Test commands
         run: bash scripts/test.sh
       - name: Install Android SDK packages
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
           echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-35/android.jar" >> "$GITHUB_ENV"
           echo "BUILD_TOOLS=$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_ENV"
       - name: Build and verify signed APK
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -47,10 +47,47 @@ jobs:
           export VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))
           bash build.sh
       - name: Upload APK
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: Orbi-APK-${{ github.run_number }}
           path: build/Assistente-Teste.apk
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: orbi-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Orbi-APK-${{ github.run_number }}
+          path: apk
+      - name: Publish APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="build-${GITHUB_RUN_NUMBER}"
+          cp apk/Assistente-Teste.apk apk/Orbi.apk
+          cat > notes.md <<'NOTES'
+          ## Instalar no Android
+          Toque em **Orbi.apk** abaixo, abra o arquivo baixado e confirme a instalação.
+          A assinatura original foi preservada para atualizar o aplicativo existente.
+          NOTES
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "Orbi — build $GITHUB_RUN_NUMBER" --notes-file notes.md --draft
+          fi
+          gh release upload "$tag" apk/Orbi.apk --clobber
+          gh release edit "$tag" --draft=false --latest
+          echo '### Download direto do APK' >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/Orbi.apk" >> "$GITHUB_STEP_SUMMARY"

@@ -2,6 +2,14 @@
 
 Assistente pessoal e ferramentas para Android. Base inicial: protótipo 0.2, em Java nativo.
 
+## Instalar no celular
+
+[**Baixar Orbi.apk — versão mais recente**](https://github.com/ricardostange/Orbi/releases/latest/download/Orbi.apk)
+
+Abra o APK baixado e confirme a instalação no Android. Não é necessário extrair ZIP ou entrar no GitHub. Se solicitado, permita que o navegador instale aplicativos.
+
+Cada build bem-sucedido da branch `main` publica uma Release com o APK assinado. O link acima sempre aponta para a Release mais recente.
+
 ## Implementado
 
 - Ativação como assistente padrão via ACTION_ASSIST / VOICE_ASSIST.
@@ -37,13 +45,13 @@ export ECJ_JAR=/caminho/ecj-3.33.0.jar
 
 Resultado: `build/Assistente-Teste.apk`.
 
-O projeto ainda utiliza o pipeline enxuto original; não é um projeto Gradle e não tem CI configurado.
+O projeto ainda utiliza o pipeline enxuto original; não é um projeto Gradle e usa GitHub Actions para testar, compilar e publicar o APK nas Releases.
 
 ## Atualizações e assinatura
 
 O identificador `br.com.assistente.teste` foi preservado para manter compatibilidade com o aplicativo instalado. O nome exibido ainda é Assistente Teste.
 
-A chave `development.jks` não está versionada. Para atualizar o APK já instalado, restaure a chave original na raiz antes de compilar. Ela está no pacote de código 0.2 entregue anteriormente. Sem essa chave, o script gera uma nova chave de desenvolvimento: esse APK não atualizará a instalação anterior. Não desinstale o app se quiser preservar as notas.
+A chave `development.jks` não está versionada. Para atualizar o APK já instalado, restaure a chave original na raiz antes de compilar. Ela está no pacote de código 0.2 entregue anteriormente. Configure também `KEYSTORE_PASSWORD` e `KEY_PASSWORD` no ambiente. Sem a chave original, o build é interrompido; outra assinatura é recusada. Não desinstale o app se quiser preservar as notas.
 
 ## Estado de validação
 
