@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(bg);
         LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(24),dp(20),dp(24),dp(24));scroll.addView(root);
-        root.addView(text("PROTÓTIPO 02 · ANDROID",12,accent));root.addView(text("Assistente\nde bolso",38,Color.WHITE));
+        root.addView(text("PROTÓTIPO 02 · ANDROID",12,accent));root.addView(text("Orbi",38,Color.WHITE));
         root.addView(text("Seu botão chama. Você fala. Uma ferramenta executa.",17,Color.LTGRAY));
         status=text("Pronto para ouvir",16,accent);root.addView(status);
         button(root,"Falar agora",()->listen());
@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
         if(tts!=null)tts.stop();pendingSpeech=null;
         Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"pt-BR");i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Diga um comando para o Assistente Teste");i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"pt-BR");i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Diga um comando para o Orbi");i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1);
         try{listening=true;status.setText("Ouvindo…");startActivityForResult(i,SPEECH);}catch(ActivityNotFoundException|SecurityException e){listening=false;status.setText("Reconhecimento de voz indisponível. Use o campo de texto.");}
     }
     @Override protected void onActivityResult(int request,int result,Intent data){

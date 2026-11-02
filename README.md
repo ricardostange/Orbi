@@ -49,7 +49,7 @@ O projeto ainda utiliza o pipeline enxuto original; não é um projeto Gradle e 
 
 ## Atualizações e assinatura
 
-O identificador `br.com.assistente.teste` foi preservado para manter compatibilidade com o aplicativo instalado. O nome exibido ainda é Assistente Teste.
+O identificador `br.com.assistente.teste` foi preservado para manter compatibilidade com o aplicativo instalado. O nome exibido é Orbi.
 
 A chave `development.jks` não está versionada. Para atualizar o APK já instalado, restaure a chave original na raiz antes de compilar. Ela está no pacote de código 0.2 entregue anteriormente. Configure também `KEYSTORE_PASSWORD` e `KEY_PASSWORD` no ambiente. Sem a chave original, o build é interrompido; outra assinatura é recusada. Não desinstale o app se quiser preservar as notas.
 
