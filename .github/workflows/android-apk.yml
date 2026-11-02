@@ -17,20 +17,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Prepare compiler
-        shell: bash
-        run: |
-          curl --fail --location --retry 3 https://repo.maven.apache.org/maven2/org/eclipse/jdt/ecj/3.33.0/ecj-3.33.0.jar -o "$RUNNER_TEMP/ecj.jar"
-          echo "f7686c4960cf70c2ebc5c500a73a8cfc04541b730c18f1c5c21329889b137f45  $RUNNER_TEMP/ecj.jar" | sha256sum --check
-          echo "ECJ_JAR=$RUNNER_TEMP/ecj.jar" >> "$GITHUB_ENV"
-      - name: Test commands
-        run: bash scripts/test.sh
-      - name: Install Android SDK packages
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
-          echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-35/android.jar" >> "$GITHUB_ENV"
-          echo "BUILD_TOOLS=$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_ENV"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compile Kotlin and Compose
+        run: gradle :app:assembleDebug :app:lintDebug --no-daemon
       - name: Build and verify signed APK
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         shell: bash
@@ -45,7 +36,10 @@ jobs:
           umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
           export VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))
-          bash build.sh
+          gradle :app:assembleRelease --no-daemon
+          mkdir -p build
+          cp app/build/outputs/apk/release/app-release.apk build/Assistente-Teste.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs build/Assistente-Teste.apk | grep -F 'e7aacc33b1b7a65d3c86e8b6e489d133571f4eb589ea77c895465371e33cf69f' 
       - name: Upload APK
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
