@@ -16,7 +16,7 @@ class SpotifyAuth(context: Context, private val client: OkHttpClient) {
     private val store = ApiKeyStore(context, "spotify", "orbi.spotify.oauth.v1")
     private fun record() = store.read()?.let(::JSONObject) ?: JSONObject()
     val connected: Boolean get() = record().optString("refresh_token").isNotEmpty()
-    val clientId: String get() = record().optString("client_id")
+    val clientId: String get() = record().optString("client_id").ifBlank { DEFAULT_CLIENT_ID }
 
     @Synchronized fun authorize(clientId: String): Uri {
         require(clientId.matches(Regex("[a-fA-F0-9]{32}"))) { "Informe um Client ID válido do Spotify." }
@@ -82,8 +82,9 @@ class SpotifyAuth(context: Context, private val client: OkHttpClient) {
     private fun encode(bytes: ByteArray) = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
 
     companion object {
-        const val REDIRECT_URI = "br.com.assistente.teste://spotify/callback"
+        const val DEFAULT_CLIENT_ID = "c69bf2e430f743d6a84b9b3ff6a52b2e"
+        const val REDIRECT_URI = "orbi://callback"
         const val SCOPES = "user-read-private user-read-playback-state user-read-currently-playing user-modify-playback-state user-read-recently-played user-library-read user-library-modify playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public"
-        fun isCallback(uri: Uri) = uri.scheme == "br.com.assistente.teste" && uri.host == "spotify" && uri.path == "/callback" && uri.port == -1
+        fun isCallback(uri: Uri) = uri.scheme == "orbi" && uri.host == "callback" && uri.path.isNullOrEmpty() && uri.port == -1
     }
 }

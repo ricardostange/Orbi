@@ -64,12 +64,18 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
         integrationStatus = "Conclua a autorização no navegador."
     }
     fun spotifyCallback(uri: Uri) = task(integration = true) {
-        withContext(Dispatchers.IO) { spotifyAuth.complete(uri) }
+        withContext(Dispatchers.IO) {
+            spotifyAuth.complete(uri)
+            chat.clearHistory()
+        }
         refreshSpotify()
         integrationStatus = "Spotify conectado. Peça uma música ou use os controles."
     }
     fun disconnectSpotify() = task(integration = true) {
-        withContext(Dispatchers.IO) { spotifyAuth.disconnect() }
+        withContext(Dispatchers.IO) {
+            spotifyAuth.disconnect()
+            chat.clearHistory()
+        }
         refreshSpotify()
         integrationStatus = "Spotify desconectado neste aparelho. Para revogar a permissão, remova o Orbi na conta Spotify."
     }

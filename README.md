@@ -8,7 +8,7 @@ Configure sua chave DeepSeek no app. Toque em Falar: a transcrição é enviada 
 
 ## Spotify
 
-Abra **Integrações** para conectar sua conta com o Client ID de um app Spotify e OAuth PKCE (sem Client Secret). Cadastre o Redirect URI `br.com.assistente.teste://spotify/callback` no painel Spotify. Há controles de reprodução, busca, fila, dispositivos, biblioteca e playlists. Reprodução exige Premium e dispositivo ativo; valem as restrições da API oficial.
+Abra **Integrações** para conectar sua conta com o Client ID de um app Spotify e OAuth PKCE (sem Client Secret). O Client ID padrão já vem preenchido. Cadastre o Redirect URI `orbi://callback` no painel Spotify. Há controles de reprodução, busca, fila, dispositivos, biblioteca e playlists. Reprodução exige Premium e dispositivo ativo; valem as restrições da API oficial.
 
 [Configuração, recursos, privacidade e como adicionar integrações](docs/INTEGRATIONS.md). Dados consultados via conversa são enviados ao DeepSeek; tokens ficam criptografados no aparelho. Os botões de reprodução não dependem da chave DeepSeek.
 

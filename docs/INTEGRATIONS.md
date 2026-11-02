@@ -3,9 +3,9 @@
 ## Conectar o Spotify
 
 1. Crie um aplicativo no [Spotify for Developers](https://developer.spotify.com/dashboard), com Web API habilitada.
-2. Cadastre exatamente o Redirect URI `br.com.assistente.teste://spotify/callback`.
+2. Cadastre exatamente o Redirect URI `orbi://callback`.
 3. No modo de desenvolvimento, adicione a conta que usará o Orbi aos usuários autorizados no painel. O Spotify exige Premium do proprietário do app nesse modo e limita os usuários autorizados.
-4. No Orbi, abra **Integrações**, cole o **Client ID** e toque em **Conectar Spotify**. Não cole o Client Secret: ele não é usado nem deve ser distribuído em um APK.
+4. No Orbi, abra **Integrações**, confira o **Client ID** pré-preenchido (`c69bf2e430f743d6a84b9b3ff6a52b2e`) ou informe o de outro app e toque em **Conectar Spotify**. Não cole o Client Secret: ele não é usado nem deve ser distribuído em um APK.
 5. Autorize no navegador e retorne ao Orbi. Confira o resultado em Integrações.
 6. Para controlar por voz, configure também a chave DeepSeek em **Configurar API**. Os botões Retomar, Pausar e Próxima não precisam dessa chave.
 
@@ -30,7 +30,7 @@ Isso **não é acesso irrestrito à conta**: o Orbi controla apenas as operaçõ
 - Tokens, Client ID e dados temporários do OAuth são criptografados via Android Keystore, em armazenamento privado sem backup. A chave DeepSeek mantém arquivo/alias anteriores.
 - Refresh automático antes de expirar e uma renovação em caso de HTTP 401. Sem repetição automática de comandos por falha de rede ou limite de uso.
 - Desconectar apaga os tokens locais, mas não revoga a autorização no servidor. Para revogar, remova o aplicativo nas permissões da conta Spotify.
-- Ao usar voz/conversa, a pergunta e os resultados das ferramentas (por exemplo, nomes de músicas, dispositivos e playlists) são enviados ao DeepSeek. Tokens não são enviados. Não há histórico de conversa persistido.
+- Ao usar voz/conversa, a pergunta e os resultados das ferramentas (por exemplo, nomes de músicas, dispositivos e playlists) são enviados ao DeepSeek. Tokens não são enviados. Até cinco pedidos anteriores concluídos, incluindo respostas e chamadas/resultados das ferramentas, são reenviados como contexto (limite total de 60 mil caracteres; pedidos completos mais antigos são descartados). Esse histórico fica apenas na memória, não é persistido e é limpo ao encerrar o processo ou conectar/desconectar uma conta Spotify. Pedidos que falham antes da resposta final não entram no histórico.
 - O modelo só pode selecionar operações explicitamente permitidas, não URLs arbitrárias. Parâmetros são validados; há limites de seis etapas/oito ações por pedido. Conteúdo retornado é tratado como dado não confiável no prompt.
 - Alterações de biblioteca/playlists só devem ser solicitadas explicitamente. Se ocorrer erro depois de um comando, consulte o estado antes de repetir: o servidor pode já tê-lo aplicado. Não há transação entre múltiplas ações.
 
