@@ -1,12 +1,10 @@
 package br.com.assistente.teste;
 
 import android.app.Activity;
-import android.app.role.RoleManager;
 import android.content.*;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.*;
-import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.view.*;
@@ -16,46 +14,64 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class MainActivity extends Activity {
-    private static final int SPEECH=100, ROLE=101;
+    private static final int SPEECH=100;
+    private static final String COMMANDS="Você pode dizer:\n\n"
+        + "• Olá mundo\n"
+        + "• Que horas são?\n"
+        + "• Anotar comprar café\n"
+        + "• Ler notas\n"
+        + "• Remover comprar café\n"
+        + "• Ajuda — mostrar os comandos\n\n"
+        + "Troque “comprar café” pelo texto da sua nota. Para remover, use o texto exato, incluindo maiúsculas, acentos e pontuação.";
     private final int bg=Color.rgb(14,25,35), accent=Color.rgb(183,245,138);
-    private TextView status, heard, answer, trace;
-    private EditText input;
+    private TextView answer;
+    private Button speak;
+    private ScrollView scroll;
     private TextToSpeech tts;
     private boolean ttsReady, listening;
     private String pendingSpeech;
     private int dp(int x){return (int)(x*getResources().getDisplayMetrics().density+0.5f);}
     private TextView text(String s,int size,int color){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);t.setPadding(0,dp(8),0,dp(8));return t;}
-    private void button(LinearLayout root,String label,Runnable action){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextColor(bg);b.setBackgroundTintList(ColorStateList.valueOf(accent));root.addView(b,new LinearLayout.LayoutParams(-1,dp(56)));b.setOnClickListener(v->action.run());}
     private boolean assist(Intent i){return Intent.ACTION_ASSIST.equals(i.getAction())||"android.intent.action.VOICE_ASSIST".equals(i.getAction());}
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);
         getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
-        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(bg);
-        LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(24),dp(20),dp(24),dp(24));scroll.addView(root);
-        root.addView(text("PROTÓTIPO 02 · ANDROID",12,accent));root.addView(text("Orbi",38,Color.WHITE));
-        root.addView(text("Seu botão chama. Você fala. Uma ferramenta executa.",17,Color.LTGRAY));
-        status=text("Pronto para ouvir",16,accent);root.addView(status);
-        button(root,"Falar agora",()->listen());
-        button(root,"Selecionar como assistente padrão",()->chooseAssistant());
-        root.addView(text("Depois de selecionar este app, teste o botão que você já configurou. O atalho precisa chamar o assistente padrão, e não um app específico.",14,Color.LTGRAY));
-        input=new EditText(this);input.setSingleLine(true);input.setTextColor(Color.WHITE);input.setHintTextColor(Color.GRAY);input.setHint("Ou digite um comando");root.addView(input);
-        button(root,"Executar texto",()->execute(input.getText().toString()));
-        heard=text("",15,Color.LTGRAY);answer=text("Diga “olá mundo”, “que horas são?”, “anotar comprar café” “ler notas” ou “remover comprar café”.",20,Color.WHITE);trace=text("Ferramentas locais · sem LLM nesta versão",13,accent);
-        root.addView(heard);root.addView(answer);root.addView(trace);
-        root.addView(text("Para remover, diga “remover” seguido do texto exato: maiúsculas, acentos e pontuação contam. Se houver notas iguais, remove apenas a primeira. Notas ficam somente neste app. A transcrição é feita pelo serviço de voz do celular e pode usar internet. Não há escuta contínua.",13,Color.LTGRAY));
-        setContentView(scroll);
+        LinearLayout root=new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(bg);
+        root.setPadding(dp(24),dp(24),dp(24),dp(24));
+        scroll=new ScrollView(this);
+        scroll.setFillViewport(true);
+        answer=text(COMMANDS,20,Color.WHITE);
+        answer.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        scroll.addView(answer);
+        root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        speak=new Button(this);
+        speak.setText("Falar");
+        speak.setAllCaps(false);
+        speak.setTextSize(18);
+        speak.setTextColor(bg);
+        speak.setBackgroundTintList(ColorStateList.valueOf(accent));
+        LinearLayout.LayoutParams buttonParams=new LinearLayout.LayoutParams(-1,-2);
+        buttonParams.topMargin=dp(16);
+        speak.setMinHeight(dp(56));
+        root.addView(speak,buttonParams);
+        speak.setOnClickListener(v->listen());
+        setContentView(root);
         tts=new TextToSpeech(this,result->{
             if(result==TextToSpeech.SUCCESS){int lang=tts.setLanguage(new Locale("pt","BR"));ttsReady=lang>=0;if(ttsReady&&pendingSpeech!=null&&!listening){say(pendingSpeech);pendingSpeech=null;}}
         });
-        if(saved!=null){listening=saved.getBoolean("listening");heard.setText(saved.getString("heard",""));answer.setText(saved.getString("answer",""));trace.setText(saved.getString("trace",""));}
+        if(saved!=null){
+            listening=saved.getBoolean("listening");
+            answer.setText(saved.getString("answer",COMMANDS));
+            speak.setEnabled(!listening);
+        }
         if(saved==null && assist(getIntent()))root.post(()->listen());
     }
     @Override protected void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);if(assist(i))listen();}
-    private void chooseAssistant(){
-        try{
-            if(Build.VERSION.SDK_INT>=29){RoleManager r=(RoleManager)getSystemService(ROLE_SERVICE);if(r!=null&&r.isRoleAvailable(RoleManager.ROLE_ASSISTANT)&&!r.isRoleHeld(RoleManager.ROLE_ASSISTANT)){startActivityForResult(r.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT),ROLE);return;}}
-            startActivity(new Intent(Settings.ACTION_VOICE_INPUT_SETTINGS));
-        }catch(ActivityNotFoundException|SecurityException e){try{startActivity(new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS));}catch(Exception ignored){status.setText("Abra Ajustes > Apps > Apps padrão > Assistente digital.");}}
+    private void show(String message){
+        answer.setText(message);
+        scroll.post(()->scroll.scrollTo(0,0));
     }
     private void listen(){
         if(listening)return;
@@ -63,17 +79,17 @@ public class MainActivity extends Activity {
         Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"pt-BR");i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Diga um comando para o Orbi");i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1);
-        try{listening=true;status.setText("Ouvindo…");startActivityForResult(i,SPEECH);}catch(ActivityNotFoundException|SecurityException e){listening=false;status.setText("Reconhecimento de voz indisponível. Use o campo de texto.");}
+        try{listening=true;speak.setEnabled(false);startActivityForResult(i,SPEECH);}catch(ActivityNotFoundException|SecurityException e){listening=false;speak.setEnabled(true);show("Reconhecimento de voz indisponível. Verifique o serviço de voz nas configurações do celular.");}
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
-        if(request==SPEECH){listening=false;ArrayList<String> values=data==null?null:data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            if(result==RESULT_OK&&values!=null&&!values.isEmpty())execute(values.get(0));else status.setText("Nenhuma fala recebida. Tente novamente.");
-        }else if(request==ROLE){status.setText(result==RESULT_OK?"Assistente selecionado. Teste seu botão.":"Seleção não concluída. Você ainda pode testar por aqui.");}
+        if(request==SPEECH){listening=false;speak.setEnabled(true);ArrayList<String> values=data==null?null:data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if(result==RESULT_OK&&values!=null&&!values.isEmpty())execute(values.get(0));else show("Nenhuma fala recebida. Toque em Falar para tentar novamente.\n\n"+COMMANDS);
+        }
     }
     private JSONArray notes(){try{return new JSONArray(getPreferences(0).getString("notes","[]"));}catch(Exception e){return new JSONArray();}}
     private void execute(String raw){
-        if(raw.trim().isEmpty()){status.setText("Fale ou digite um comando.");return;}
+        if(raw.trim().isEmpty()){show("Toque em Falar e diga um comando.");return;}
         CommandRouter.Command c=CommandRouter.parse(raw);String response;
         switch(c.tool){
             case "hello":response="Olá, mundo! Seu assistente está funcionando.";break;
@@ -96,12 +112,12 @@ public class MainActivity extends Activity {
                 JSONArray list=notes();StringBuilder b=new StringBuilder();int start=Math.max(0,list.length()-10);
                 for(int n=start;n<list.length();n++)b.append(n+1).append(". ").append(list.optString(n)).append("\n");
                 response=list.length()==0?"Você ainda não tem notas.":(start>0?"Últimas 10 notas:\n":"Suas notas:\n")+b.toString();break;
-            case "help":response="Experimente: olá mundo; que horas são; anotar comprar café; ler notas; remover comprar café.";break;
-            default:response="Ainda não entendi esse comando. Este teste usa comandos fixos. Diga ajuda para ouvir os exemplos.";
+            case "help":response=COMMANDS;break;
+            default:response="Não entendi. Diga ajuda para consultar os comandos.";
         }
-        heard.setText("Você: "+raw);answer.setText(response);trace.setText("Ferramenta: "+c.tool);status.setText("Pronto para o próximo comando");say(response);
+        show(response);say(response);
     }
     private void say(String s){if(ttsReady){tts.speak(s.substring(0,Math.min(s.length(),TextToSpeech.getMaxSpeechInputLength())),TextToSpeech.QUEUE_FLUSH,null,"reply");}else pendingSpeech=s;}
-    @Override protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putBoolean("listening",listening);b.putString("heard",heard.getText().toString());b.putString("answer",answer.getText().toString());b.putString("trace",trace.getText().toString());}
+    @Override protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putBoolean("listening",listening);b.putString("answer",answer.getText().toString());}
     @Override protected void onDestroy(){if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
 }

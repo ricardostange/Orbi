@@ -13,7 +13,8 @@ Cada build bem-sucedido da branch `main` publica uma Release com o APK assinado.
 ## Implementado
 
 - Ativação como assistente padrão via ACTION_ASSIST / VOICE_ASSIST.
-- Entrada por voz pelo serviço do celular e alternativa por texto.
+- Interface com um botão Falar e descrição inicial dos comandos.
+- Entrada por voz pelo serviço do celular; diga ajuda para rever os comandos.
 - Resposta por TextToSpeech do Android.
 - Anotar, listar e remover notas locais por correspondência exata.
 - Consultar horário e responder aos comandos de teste.
@@ -57,4 +58,4 @@ A chave `development.jks` não está versionada. Para atualizar o APK já instal
 
 A versão 0.2 teve compilação, assinatura e 20 verificações de roteamento/correspondência validadas. Não houve teste em emulador ou aparelho físico neste ambiente.
 
-Não há LLM, voz neural própria, palavra de ativação ou timer implementados nesta versão. A revisão da interface e o timer estão pendentes.
+Não há LLM, voz neural própria, palavra de ativação ou timer implementados nesta versão. O timer está pendente.
