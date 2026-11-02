@@ -10,10 +10,13 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-class ApiKeyStore(context: Context) {
+class ApiKeyStore(
+    context: Context,
+    private val entry: String = "deepseek",
+    private val alias: String = "orbi.deepseek.api.v1"
+) {
     private val prefs = context.getSharedPreferences("api_credentials", Context.MODE_PRIVATE)
-    private val alias = "orbi.deepseek.api.v1"
-    fun hasKey() = prefs.contains("deepseek")
+    fun hasKey() = prefs.contains(entry)
     private fun key(create: Boolean): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         if (store.containsAlias(alias)) return store.getKey(alias, null) as SecretKey
@@ -24,14 +27,15 @@ class ApiKeyStore(context: Context) {
         }.generateKey()
     }
     fun save(value: String) {
-        require(value.isNotBlank() && value.none { it.isWhitespace() })
+        require(value.isNotBlank())
+        if (entry == "deepseek") require(value.none { it.isWhitespace() })
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key(true)) }
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
         val record = Base64.encodeToString(cipher.iv, Base64.NO_WRAP) + ":" + Base64.encodeToString(encrypted, Base64.NO_WRAP)
-        check(prefs.edit().putString("deepseek", record).commit())
+        check(prefs.edit().putString(entry, record).commit())
     }
     fun read(): String? {
-        val record = prefs.getString("deepseek", null) ?: return null
+        val record = prefs.getString(entry, null) ?: return null
         val parts = record.split(':')
         check(parts.size == 2)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
@@ -39,5 +43,5 @@ class ApiKeyStore(context: Context) {
         }
         return String(cipher.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)), Charsets.UTF_8)
     }
-    fun remove() { check(prefs.edit().remove("deepseek").commit()) }
+    fun remove() { check(prefs.edit().remove(entry).commit()) }
 }

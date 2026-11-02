@@ -12,7 +12,7 @@ A chave original é uma chave de desenvolvimento, alias demo, senha android. Ela
 
 O pipeline GitHub Actions está definido no repositório e requer os secrets descritos abaixo para assinar o APK.
 
-Testes: scripts/test.sh compila apenas CommandRouter, NoteMatcher e RouterTest, sem depender do Android.
+Testes: `scripts/test.sh` executa testes JVM das integrações, build debug e lint via Gradle (Java 17 e Android SDK 35). Consulte [INTEGRATIONS.md](INTEGRATIONS.md) para configuração do Spotify e validação em aparelho.
 
 ## GitHub Actions
 

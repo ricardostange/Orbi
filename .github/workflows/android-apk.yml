@@ -20,8 +20,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Compile Kotlin and Compose
-        run: gradle :app:assembleDebug :app:lintDebug --no-daemon
+      - name: Test, compile Kotlin and Compose, and lint
+        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --no-daemon
       - name: Build and verify signed APK
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         shell: bash

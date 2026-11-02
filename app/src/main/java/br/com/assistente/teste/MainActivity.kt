@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
-import android.view.WindowManager
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
 import java.util.Locale
+import br.com.assistente.teste.integrations.IntegrationsDialog
+import br.com.assistente.teste.integrations.spotify.SpotifyAuth
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private val model: ChatModel by viewModels()
@@ -43,6 +45,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB7F58A), background = Color(0xFF0E1923))) {
                 var settings by remember { mutableStateOf(false) }
+                var integrations by remember { mutableStateOf(false) }
                 LaunchedEffect(model.replyId) {
                     if (model.replyId > spokenId) { spokenId = model.replyId; speak(model.answer) }
                 }
@@ -55,15 +58,33 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         Button(onClick = { listen() }, enabled = !model.busy && !listening, modifier = Modifier.fillMaxWidth()) {
                             Text(if (model.busy) "Aguardando resposta…" else if (listening) "Ouvindo…" else "Falar")
                         }
-                        TextButton(onClick = { settings = true; tts?.stop() }, modifier = Modifier.fillMaxWidth()) { Text("Configurar API") }
+                        TextButton(onClick = { settings = true; tts?.stop(); pending = null }, modifier = Modifier.fillMaxWidth()) { Text("Configurar API") }
+                        TextButton(onClick = { integrations = true; tts?.stop(); pending = null }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (model.spotifyConnected) "Integrações · Spotify conectado" else "Integrações")
+                        }
                     }
                 }
                 if (settings) KeyDialog(model.keys) { settings = false }
+                if (integrations) IntegrationsDialog(model, ::openBrowser) { integrations = false }
             }
         }
-        if (savedInstanceState == null && isAssist(intent)) window.decorView.post { listen() }
+        if (savedInstanceState == null) {
+            if (intent.data?.let { SpotifyAuth.isCallback(it) } == true) handleSpotify(intent)
+            else if (isAssist(intent)) window.decorView.post { listen() }
+        }
     }
-    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); if (isAssist(intent)) listen() }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.data?.let { SpotifyAuth.isCallback(it) } == true) handleSpotify(intent)
+        else if (isAssist(intent)) listen()
+    }
+    private fun handleSpotify(intent: Intent) {
+        intent.data?.let(model::spotifyCallback)
+        intent.data = null // Do not reprocess an authorization code after recreation.
+        voiceError = "Retorno do Spotify recebido. Veja o resultado em Integrações."
+    }
+    private fun openBrowser(uri: Uri) { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
     private fun isAssist(intent: Intent) = intent.action == Intent.ACTION_ASSIST || intent.action == "android.intent.action.VOICE_ASSIST"
     private fun listen() {
         if (model.busy || listening) return
