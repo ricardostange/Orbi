@@ -5,6 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -12,11 +14,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import br.com.assistente.teste.ChatModel
+import br.com.assistente.teste.R
 import br.com.assistente.teste.integrations.IntegrationsDialog
 import kotlinx.coroutines.launch
 
@@ -25,11 +35,13 @@ enum class AppSection(val title: String) { HOME("Início"), LISTS("Listas"), LOG
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrbiApp(model: ChatModel, section: AppSection, navigate: (AppSection) -> Unit,
-    listening: Boolean, voiceError: String?, listen: () -> Unit, openBrowser: (Uri) -> Unit,
+    listening: Boolean, voiceError: String?, listen: () -> Unit, sendText: (String) -> Unit, openBrowser: (Uri) -> Unit,
     integrations: Boolean, showIntegrations: (Boolean) -> Unit) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var api by rememberSaveable { mutableStateOf(false) }
+    var composing by rememberSaveable { mutableStateOf(false) }
+    var draft by rememberSaveable { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
     MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB7F58A), background = Color(0xFF10161B), surface = Color(0xFF10161B))) {
         BackHandler(drawer.isOpen || section != AppSection.HOME) {
@@ -67,9 +79,17 @@ fun OrbiApp(model: ChatModel, section: AppSection, navigate: (AppSection) -> Uni
                             }
                         }
                         if (model.busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Button(onClick = listen, enabled = !model.busy && !listening,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp).heightIn(min = 56.dp)) {
-                            Text(if (model.busy) "Aguardando resposta…" else if (listening) "Ouvindo…" else "Falar")
+                        Row(Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = listen, enabled = !model.busy && !listening,
+                                modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+                                Text(if (model.busy) "Aguardando resposta…" else if (listening) "Ouvindo…" else "Falar")
+                            }
+                            IconButton(onClick = { composing = true }, enabled = !model.busy && !listening) {
+                                Icon(painterResource(R.drawable.ic_keyboard), contentDescription = "Escrever mensagem",
+                                    tint = if (model.busy || listening) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                        else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                     AppSection.LISTS -> ListsScreen(model, Modifier.padding(padding))
@@ -89,6 +109,32 @@ fun OrbiApp(model: ChatModel, section: AppSection, navigate: (AppSection) -> Uni
         model.listsError?.let { message ->
             AlertDialog(onDismissRequest = model::dismissListsError, title = { Text("Listas") }, text = { Text(message) },
                 confirmButton = { TextButton(onClick = model::dismissListsError) { Text("OK") } })
+        }
+        if (composing) {
+            val focus = remember { FocusRequester() }
+            val keyboard = LocalSoftwareKeyboardController.current
+            val submit = {
+                val text = draft.trim()
+                if (text.isNotEmpty() && !model.busy && !listening) {
+                    keyboard?.hide()
+                    sendText(text)
+                    draft = ""
+                    composing = false
+                }
+            }
+            AlertDialog(onDismissRequest = { composing = false },
+                title = { Text("Escrever mensagem") },
+                text = {
+                    OutlinedTextField(value = draft, onValueChange = { draft = it },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                        placeholder = { Text("O que você quer pedir ao Orbi?") },
+                        minLines = 2, maxLines = 5, enabled = !model.busy && !listening,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { submit() }))
+                },
+                confirmButton = { TextButton(onClick = { submit() }, enabled = draft.isNotBlank() && !model.busy && !listening) { Text("Enviar") } },
+                dismissButton = { TextButton(onClick = { composing = false }) { Text("Cancelar") } })
+            LaunchedEffect(Unit) { focus.requestFocus(); keyboard?.show() }
         }
         if (api) ApiDialog(model) { api = false }
         if (integrations) IntegrationsDialog(model, openBrowser) { showIntegrations(false) }

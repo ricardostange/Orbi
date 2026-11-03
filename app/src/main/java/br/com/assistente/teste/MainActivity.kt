@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         integrations = savedInstanceState?.getBoolean("integrations") ?: false
         section = savedInstanceState?.getString("section")?.let { runCatching { AppSection.valueOf(it) }.getOrNull() } ?: AppSection.HOME
         setContent {
-            OrbiApp(model, section, { section = it }, listening, voiceError, ::listen, ::openBrowser,
+            OrbiApp(model, section, { section = it }, listening, voiceError, ::listen, ::sendText, ::openBrowser,
                 integrations, { integrations = it })
         }
         if (intent.data != null && intent.action == Intent.ACTION_VIEW) handleSpotify(intent)
@@ -68,6 +68,11 @@ class MainActivity : ComponentActivity() {
     }
     private fun openBrowser(uri: Uri) { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
     private fun isAssist(intent: Intent) = intent.action == Intent.ACTION_ASSIST || intent.action == "android.intent.action.VOICE_ASSIST"
+    private fun sendText(text: String) {
+        if (model.busy || listening || text.isBlank()) return
+        voiceError = null
+        model.send(text)
+    }
     private fun listen() {
         if (model.busy || listening) return
         voiceError = null
