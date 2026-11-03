@@ -4,10 +4,13 @@ package br.com.assistente.teste.llm
 class AgentPrompts(read: (String) -> String) {
     val system = read("system.md").trim()
     private val spotify = read("spotify.md").trim()
+    private val lists = read("lists.md").trim()
     val repair = read("repair.md").trim()
     private val connected = read("connected.md").trim()
     private val disconnected = read("disconnected.md").trim()
-    init { require(listOf(system, spotify, repair, connected, disconnected).all { it.isNotBlank() }) }
+    init { require(listOf(system, spotify, lists, repair, connected, disconnected).all { it.isNotBlank() }) }
     fun availability(names: List<String>): String = if (names.isEmpty()) disconnected else
-        connected.replace("{{tools}}", names.joinToString()) + if ("spotify" in names) "\n$spotify" else ""
+        connected.replace("{{tools}}", names.joinToString()) +
+            (if ("spotify" in names) "\n$spotify" else "") +
+            (if ("list_lists" in names) "\n$lists" else "")
 }
