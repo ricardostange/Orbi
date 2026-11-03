@@ -22,7 +22,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     var question by mutableStateOf(""); private set
     var answer by mutableStateOf("Toque em Falar para conversar com o Orbi."); private set
     var busy by mutableStateOf(false); private set
-    var replyId by mutableIntStateOf(0); private set
+    var diagnostics by mutableStateOf(""); private set
     var spotifyConnected by mutableStateOf(false); private set
     var spotifyClientId by mutableStateOf(""); private set
     var integrationStatus by mutableStateOf("Conecte sua conta para controlar o Spotify."); private set
@@ -40,7 +40,11 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            try { refreshSpotify() } catch (_: Exception) { integrationStatus = "Credenciais indisponíveis. Desconecte e conecte novamente." }
+            try {
+                refreshSpotify()
+                if (spotifyConnected && pendingSpotifyCallback == null)
+                    integrationStatus = "Spotify autorizado neste aparelho. Use Testar conexão para verificar o acesso."
+            } catch (_: Exception) { integrationStatus = "Credenciais indisponíveis. Desconecte e conecte novamente." }
         }
     }
     private suspend fun refreshSpotify() {
@@ -52,12 +56,14 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
         if (busy || text.isBlank()) return
         question = text
         answer = "Consultando DeepSeek…"
+        diagnostics = ""
         task {
             val result = withContext(Dispatchers.IO) {
-                chat.reply(keys.read() ?: error("Configure sua chave em Configurar API."), text)
+                chat.reply(keys.read() ?: error("Configure sua chave em Configurar API."), text) { event ->
+                    viewModelScope.launch { diagnostics = (diagnostics + "\n" + event).trim().takeLast(12_000) }
+                }
             }
             answer = result
-            replyId++
         }
     }
     fun connectSpotify(id: String, open: (Uri) -> Unit) = task(integration = true) {
@@ -70,6 +76,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
         // Browser callbacks must survive a chat/request already in progress.
         if (pendingSpotifyCallback != null) return
         pendingSpotifyCallback = uri
+        integrationStatus = "Retorno do Spotify recebido. Aguardando validação…"
         viewModelScope.launch {
             try {
                 activeTask?.join()
@@ -80,7 +87,8 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                         chat.clearHistory()
                     }
                     refreshSpotify()
-                    integrationStatus = "Spotify conectado. Use Testar conexão para verificar os dispositivos."
+                    integrationStatus = "Spotify autorizado. Verificando acesso e dispositivos…"
+                    checkSpotifyConnection()
                 }
                 activeTask?.join()
             } finally { pendingSpotifyCallback = null }
@@ -88,14 +96,17 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     }
     fun testSpotify() = task(integration = true) {
         integrationStatus = "Testando conexão…"
+        checkSpotifyConnection()
+    }
+    private suspend fun checkSpotifyConnection() {
         val devices = withContext(Dispatchers.IO) {
             JSONObject(spotify.execute("spotify", JSONObject().put("action", "devices"))).getJSONArray("devices")
         }
         integrationStatus = if (devices.length() == 0)
-            "Conexão confirmada. Nenhum dispositivo disponível: abra o Spotify e inicie uma música, depois volte ao Orbi."
+            "Spotify conectado com sucesso. Nenhum dispositivo disponível: abra o Spotify e inicie uma música, depois volte ao Orbi."
         else {
             val names = (0 until devices.length()).joinToString(", ") { devices.getJSONObject(it).optString("name", "Dispositivo") }
-            "Conexão confirmada. Dispositivos: $names."
+            "Spotify conectado com sucesso. Dispositivos: $names."
         }
     }
     fun disconnectSpotify() = task(integration = true) {
@@ -122,12 +133,19 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                     is IllegalStateException, is IllegalArgumentException -> e.message ?: "Não foi possível concluir."
                     else -> "Não foi possível ler as credenciais ou a resposta. Confira as configurações."
                 }
-                if (integration) integrationStatus = message else answer = message
+                if (integration) integrationStatus = "Spotify: $message" else answer = message
             } finally {
-                try { refreshSpotify() } catch (_: Exception) { spotifyConnected = false }
+                try {
+                refreshSpotify()
+                if (spotifyConnected && pendingSpotifyCallback == null)
+                    integrationStatus = "Spotify autorizado neste aparelho. Use Testar conexão para verificar o acesso."
+            } catch (_: Exception) { spotifyConnected = false }
                 busy = false
             }
         }
     }
+    fun debugReport(): String = "Orbi ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" +
+        "Spotify: ${if (spotifyConnected) "autorizado" else "não autorizado"}\n" +
+        "$integrationStatus\n\nPergunta: $question\nResposta: $answer\n\n$diagnostics"
     override fun onCleared() { client.dispatcher.cancelAll(); super.onCleared() }
 }

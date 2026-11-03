@@ -1,6 +1,8 @@
 package br.com.assistente.teste
 
 import br.com.assistente.teste.integrations.IntegrationRegistry
+import br.com.assistente.teste.integrations.spotify.SpotifyIntegration
+import br.com.assistente.teste.integrations.spotify.SpotifyTransport
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Response
@@ -12,6 +14,9 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ChatClientTest {
+    private var spotifyConnected = false
+    private var executed = 0
+    private val events = mutableListOf<String>()
     private val requests = mutableListOf<JSONArray>()
     private val responses = ArrayDeque<Pair<Int, String>>()
     private val client = ChatClient(OkHttpClient.Builder().addInterceptor { chain ->
@@ -22,7 +27,10 @@ class ChatClientTest {
         Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
             .code(status).message("test")
             .body("""{"choices":[{"message":$message}]}""".toResponseBody()).build()
-    }.build(), IntegrationRegistry(emptyList()))
+    }.build(), IntegrationRegistry(listOf(SpotifyIntegration({ spotifyConnected }, SpotifyTransport { _, _, _, _ ->
+        executed++
+        "{\"ok\":true}"
+    }))))
 
     private fun answer(text: String) {
         responses.addLast(200 to JSONObject().put("role", "assistant").put("content", text).toString())
@@ -84,4 +92,38 @@ class ChatClientTest {
         client.reply("key", "Tente outro pedido")
         assertEquals(2, requests.last().length())
     }
+    @Test fun `structured tool call executes once and sends result back before final answer`() {
+        spotifyConnected = true
+        responses.addLast(200 to """{"role":"assistant","content":null,"tool_calls":[{"id":"call1","type":"function","function":{"name":"spotify","arguments":"{\"action\":\"pause\"}"}}]}""")
+        answer("Pausado")
+        assertEquals("Pausado", client.reply("private-key", "Pause", events::add))
+        assertEquals(1, executed)
+        assertEquals("tool", requests.last().getJSONObject(3).getString("role"))
+        assertTrue(events.any { it.contains("Executando ferramenta: spotify") })
+        assertFalse(events.joinToString().contains("private-key"))
+    }
+    @Test fun `text call is repaired through API rather than executed as text`() {
+        spotifyConnected = true
+        answer("""{"name":"spotify","arguments":{"action":"pause"}}""")
+        responses.addLast(200 to """{"role":"assistant","content":null,"tool_calls":[{"id":"call1","type":"function","function":{"name":"spotify","arguments":"{\"action\":\"pause\"}"}}]}""")
+        answer("Pausado")
+        assertEquals("Pausado", client.reply("key", "Pause", events::add))
+        assertEquals(1, executed)
+        assertEquals(3, requests.size)
+        assertTrue(events.any { it.contains("como texto: não executada") })
+    }
+    @Test fun `disconnected or repeatedly malformed calls cannot execute`() {
+        val malformed = """{"name":"spotify","arguments":{"action":"pause"}}"""
+        answer(malformed)
+        val disconnected = assertThrows(IllegalStateException::class.java) { client.reply("key", "Pause") }
+        assertTrue(disconnected.message!!.contains("não conectado"))
+        assertEquals(0, executed)
+        spotifyConnected = true
+        answer(malformed)
+        answer(malformed)
+        assertThrows(IllegalStateException::class.java) { client.reply("key", "Pause") }
+        assertEquals(0, executed)
+        assertEquals(3, requests.size)
+    }
+
 }

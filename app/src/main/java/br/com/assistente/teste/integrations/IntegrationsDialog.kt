@@ -2,6 +2,7 @@ package br.com.assistente.teste.integrations
 
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -25,7 +26,8 @@ fun IntegrationsDialog(model: ChatModel, open: (Uri) -> Unit, close: () -> Unit)
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Spotify", style = MaterialTheme.typography.titleLarge)
                 Text(if (model.spotifyConnected) "Conta conectada" else "Conta não conectada")
-                Text(model.integrationStatus)
+                SelectionContainer { Text(model.integrationStatus) }
+                TextButton(onClick = { clipboard.setText(AnnotatedString(model.debugReport())) }) { Text("Copiar diagnóstico") }
                 TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Ocultar configuração" else "Configuração do Spotify") }
                 if (advanced) {
                     Text("No painel do app correspondente ao Client ID abaixo, habilite Web API e cadastre exatamente este Redirect URI:")

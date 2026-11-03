@@ -61,3 +61,11 @@ Checklist em aparelho: autorização aceita/negada; retorno após fechar o proce
 Referências: [PKCE](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow), [migração Dev Mode](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide).
 
 Reconectar ao mesmo Client ID preserva a sessão anterior até a nova autorização ser concluída. Trocar o Client ID limpa os tokens do aplicativo anterior. O retorno de autorização aguarda pedidos em andamento, sem ser descartado por `busy`.
+
+## Mensagens e diagnóstico (0.4)
+
+O Orbi recebe pedidos por voz, mas responde somente em texto. Perguntas, respostas e estado da conexão permitem seleção; **Copiar resposta** copia a resposta inteira. **Copiar diagnóstico** inclui versão/build, pergunta, resposta, estado do Spotify e etapas da última conversa (ferramentas disponíveis, chamadas estruturadas, execução e erros). Não inclui chave de API, tokens, códigos OAuth nem URI de callback com parâmetros.
+
+Ao receber o callback, a tela principal e Integrações mostram o andamento. Após a troca do código por tokens, o app consulta dispositivos automaticamente e mostra sucesso ou a falha de acesso. Token salvo e acesso à API são verificações diferentes.
+
+Chamadas escritas no conteúdo como JSON/DSML não são executadas como texto. O app solicita uma correção de protocolo uma vez e executa apenas `tool_calls` estruturados. Se não houver integração conectada ou a resposta continuar malformada, mostra um erro copiável. Testes simulam o ciclo HTTP completo, execução única, recuperação de chamada textual e bloqueio quando desconectado.
