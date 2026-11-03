@@ -6,6 +6,8 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.assistente.teste.llm.*
+import br.com.assistente.teste.lists.ListsRepository
+import br.com.assistente.teste.lists.ListsIntegration
 import br.com.assistente.teste.integrations.android.AndroidSpotifyIntegration
 import kotlinx.coroutines.runBlocking
 import br.com.assistente.teste.integrations.IntegrationRegistry
@@ -45,7 +47,35 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
             launch()
         }
     }
-    private val integrations = IntegrationRegistry(listOf(spotify, android))
+    private val listsRepository = ListsRepository(app)
+    val lists = listsRepository.lists
+    val pendingListDeletion = listsRepository.deletion
+    var listsReady by mutableStateOf(false); private set
+    var listsBusy by mutableStateOf(false); private set
+    var listsError by mutableStateOf<String?>(null); private set
+    private val integrations = IntegrationRegistry(listOf(spotify, android, ListsIntegration(listsRepository)))
+    fun dismissListsError() { listsError = null }
+    fun loadLists() = listAction({ listsReady = true }) { listsRepository.load() }
+    fun createList(name: String, done: () -> Unit) = listAction(done) { listsRepository.createList(name) }
+    fun renameList(id: String, name: String, done: () -> Unit) = listAction(done) { listsRepository.renameList(id, name) }
+    fun requestListDeletion(id: String) = listAction { listsRepository.requestDeletion(id) }
+    fun confirmListDeletion(requestId: String) = listAction { listsRepository.confirmDeletion(requestId) }
+    fun cancelListDeletion(requestId: String) { listsRepository.cancelDeletion(requestId) }
+    fun addListItem(id: String, text: String, done: () -> Unit) = listAction(done) { listsRepository.addItem(id, text) }
+    fun removeListItem(listId: String, itemId: String) = listAction { listsRepository.removeItem(listId, itemId) }
+    fun completeListItem(listId: String, itemId: String, completed: Boolean) = listAction { listsRepository.setCompleted(listId, itemId, completed) }
+    private fun listAction(done: () -> Unit = {}, action: () -> Unit) {
+        if (listsBusy) return
+        listsBusy = true
+        viewModelScope.launch {
+            try { withContext(Dispatchers.IO) { action() }; done() }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                listsError = if (e is IllegalArgumentException || e is IllegalStateException) e.message
+                    else "Não foi possível salvar ou ler as listas. Tente novamente."
+            } finally { listsBusy = false }
+        }
+    }
     val agentSettings = AgentSettings(app)
     var llmConfig by mutableStateOf(agentSettings.load()); private set
     private var chat = createChat()
@@ -62,6 +92,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     private var browserReturnJob: Job? = null
 
     init {
+        loadLists()
         viewModelScope.launch {
             try {
                 refreshSpotify()

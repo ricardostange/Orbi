@@ -37,7 +37,7 @@ class ChatClient(
         onProgress("Ferramentas disponíveis: ${toolNames.joinToString().ifBlank { "nenhuma (conecte o Spotify em Integrações)" }}")
         var repairedTextCall = false
         var calls = 0
-        repeat(6) { step ->
+        repeat(12) { step ->
             onProgress("LLM: solicitação ${step + 1}")
             val message = gateway.complete(key, messages, tools, onProgress)
             val toolCalls = message.optJSONArray("tool_calls")
@@ -62,7 +62,7 @@ class ChatClient(
                 })
                 return content
             }
-            check(calls + toolCalls.length() <= 8) { "Limite de ações por pedido atingido. Algumas ações podem ter sido executadas; consulte o Spotify antes de repetir." }
+            check(calls + toolCalls.length() <= 40) { "Limite de ações por pedido atingido. Algumas ações podem ter sido executadas; consulte o estado atual das listas e do Spotify antes de repetir." }
             messages.put(message)
             for (i in 0 until toolCalls.length()) {
                 calls++
@@ -86,7 +86,7 @@ class ChatClient(
                 messages.put(JSONObject().put("role", "tool").put("tool_call_id", call.getString("id")).put("content", result))
             }
         }
-        error("Limite de etapas atingido. Consulte o Spotify antes de repetir o pedido; algumas ações podem ter sido executadas.")
+        error("Limite de etapas atingido. Consulte o estado atual das listas e do Spotify antes de repetir o pedido; algumas ações podem ter sido executadas.")
     }
     private fun looksLikeTextCall(content: String): Boolean {
         val raw = content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()

@@ -60,6 +60,8 @@ class LlmConfigurationTest {
         assertFalse(prompts.availability(emptyList()).contains("Spotify: consulte"))
         assertTrue(prompts.availability(listOf("spotify")).contains("Spotify: consulte"))
         assertFalse(prompts.availability(listOf("spotify")).contains("{{tools}}"))
+        assertTrue(prompts.availability(listOf("list_lists")).contains("Listas locais:"))
+        assertFalse(prompts.availability(listOf("list_lists")).contains("Spotify: consulte"))
         assertTrue(prompts.repair.contains("NÃO foi executada"))
     }
 }

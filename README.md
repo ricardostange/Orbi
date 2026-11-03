@@ -24,3 +24,7 @@ O menu lateral separa **Início** (conversa e botão Falar) de **Configurações
 Prompts editáveis, parâmetros de conexão e testes manuais isolados estão documentados em [docs/AGENT.md](docs/AGENT.md). Alterações do backlog de novembro estão registradas em [docs/BACKLOG.md](docs/BACKLOG.md).
 
 “Abra o Spotify” usa uma ferramenta Android independente da conexão OAuth. Para tocar música por nome ou gênero, `play_query` busca uma faixa, escolhe dispositivo elegível (inclusive inativo), envia play e verifica o estado antes de confirmar.
+
+## Listas (0.6)
+
+Abra **Menu → Listas** para criar suas listas e adicionar, marcar ou remover itens. Dados ficam no aparelho e a tela funciona sem internet. O chatbot também pode operar suas listas (com internet e API configurada): “Crie uma lista Compras”, “Adicione arroz e leite a Compras”, “Marque arroz como comprado”. Exclusões de listas sempre pedem confirmação na tela. Veja [docs/LISTS.md](docs/LISTS.md).

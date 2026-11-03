@@ -20,7 +20,7 @@ import br.com.assistente.teste.ChatModel
 import br.com.assistente.teste.integrations.IntegrationsDialog
 import kotlinx.coroutines.launch
 
-enum class AppSection(val title: String) { HOME("Início"), SETTINGS("Configurações") }
+enum class AppSection(val title: String) { HOME("Início"), LISTS("Listas"), SETTINGS("Configurações") }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,9 +72,22 @@ fun OrbiApp(model: ChatModel, section: AppSection, navigate: (AppSection) -> Uni
                             Text(if (model.busy) "Aguardando resposta…" else if (listening) "Ouvindo…" else "Falar")
                         }
                     }
+                    AppSection.LISTS -> ListsScreen(model, Modifier.padding(padding))
                     AppSection.SETTINGS -> SettingsScreen(model, Modifier.padding(padding), { api = true }, { showIntegrations(true) })
                 }
             }
+        }
+        val pendingDeletion by model.pendingListDeletion.collectAsState()
+        pendingDeletion?.let { request ->
+            AlertDialog(onDismissRequest = { model.cancelListDeletion(request.id) },
+                title = { Text("Excluir lista?") },
+                text = { Text("Excluir “${request.name}” e seus ${request.itemCount} itens? Essa ação não pode ser desfeita.") },
+                confirmButton = { TextButton(enabled = !model.listsBusy, onClick = { model.confirmListDeletion(request.id) }) { Text("Excluir lista") } },
+                dismissButton = { TextButton(onClick = { model.cancelListDeletion(request.id) }) { Text("Cancelar") } })
+        }
+        model.listsError?.let { message ->
+            AlertDialog(onDismissRequest = model::dismissListsError, title = { Text("Listas") }, text = { Text(message) },
+                confirmButton = { TextButton(onClick = model::dismissListsError) { Text("OK") } })
         }
         if (api) ApiDialog(model) { api = false }
         if (integrations) IntegrationsDialog(model, openBrowser) { showIntegrations(false) }
