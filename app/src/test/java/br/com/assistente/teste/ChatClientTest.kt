@@ -104,6 +104,24 @@ class ChatClientTest {
         assertTrue(events.any { it.contains("Executando ferramenta: spotify") })
         assertFalse(events.joinToString().contains("private-key"))
     }
+    @Test fun `trace captures ordered model exchanges and correlated tool results`() {
+        spotifyConnected = true
+        responses.addLast(200 to """{"role":"assistant","content":null,"tool_calls":[{"id":"trace-call","type":"function","function":{"name":"spotify","arguments":"{\"action\":\"pause\"}"}}]}""")
+        answer("Pausado")
+        val trace = mutableListOf<Pair<String, String>>()
+        client.reply("private-key", "Pause", onTrace = { title, detail -> trace.add(title to detail) })
+        assertEquals(6, trace.size)
+        assertTrue(trace[0].first.startsWith("Envio à IA"))
+        assertTrue(trace[1].first.startsWith("Resposta da IA"))
+        assertTrue(trace[2].first.startsWith("Chamada de ferramenta"))
+        assertTrue(trace[2].second.contains("trace-call"))
+        assertTrue(trace[3].first.startsWith("Retorno de ferramenta"))
+        assertTrue(trace[4].second.contains("trace-call"))
+        assertTrue(trace[5].second.contains("Pausado"))
+        assertFalse(trace.toString().contains("private-key"))
+        assertEquals(1, executed)
+    }
+
     @Test fun `text call is repaired through API rather than executed as text`() {
         spotifyConnected = true
         answer("""{"name":"spotify","arguments":{"action":"pause"}}""")

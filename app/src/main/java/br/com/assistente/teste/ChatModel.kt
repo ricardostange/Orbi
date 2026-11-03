@@ -32,6 +32,10 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     var spotifyConnected by mutableStateOf(false); private set
     var spotifyClientId by mutableStateOf(""); private set
     var integrationStatus by mutableStateOf("Conecte sua conta para controlar o Spotify."); private set
+    private val commandLogs = br.com.assistente.teste.logs.CommandLogs(app)
+    val logs = commandLogs.entries
+    val logError = commandLogs.error
+    fun clearLogs() { if (!busy) viewModelScope.launch(Dispatchers.IO) { commandLogs.clear() } }
     val keys = ApiKeyStore(app)
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS).callTimeout(150, TimeUnit.SECONDS)
@@ -92,6 +96,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     private var browserReturnJob: Job? = null
 
     init {
+        viewModelScope.launch(Dispatchers.IO) { commandLogs.load() }
         loadLists()
         viewModelScope.launch {
             try {
@@ -113,13 +118,35 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
         diagnostics = ""
         task {
             val result = withContext(Dispatchers.IO) {
-                chat.reply(keys.read() ?: error("Configure sua chave em Configurações → API."), text) { event ->
-                    viewModelScope.launch { diagnostics = (diagnostics + "\n" + event).trim().takeLast(12_000) }
+                val key = keys.read()
+                val secrets = listOfNotNull(key)
+                val id = commandLogs.begin(text, secrets)
+                commandLogs.event(id, "Modelo", "${llmConfig.provider} · ${llmConfig.model}", secrets)
+                try {
+                    val reply = chat.reply(key ?: error("Configure sua chave em Configurações → API."), text,
+                        onProgress = { event ->
+                            commandLogs.event(id, "Diagnóstico", event, secrets)
+                            viewModelScope.launch { appendDiagnostic(event) }
+                        }, onTrace = { title, detail -> commandLogs.event(id, title, detail, secrets) })
+                    commandLogs.event(id, "Resposta final", reply, secrets)
+                    commandLogs.finish(id, "Concluído")
+                    reply
+                } catch (e: CancellationException) {
+                    commandLogs.finish(id, "Interrompido")
+                    throw e
+                } catch (e: Exception) {
+                    val detail = if (e is IllegalArgumentException || e is IllegalStateException)
+                        e.message ?: "Não foi possível concluir." else if (e is java.io.IOException)
+                        "Falha de conexão. Consulte o estado antes de repetir uma ação." else "Falha ao processar a resposta."
+                    commandLogs.event(id, "Erro", detail, secrets)
+                    commandLogs.finish(id, "Erro")
+                    throw e
                 }
             }
             answer = result
         }
     }
+
     fun connectSpotify(id: String, open: (Uri) -> Unit) = task(integration = true) {
         val uri = withContext(Dispatchers.IO) { spotifyAuth.authorize(id.trim()) }
         refreshSpotify()

@@ -4,7 +4,7 @@ Assistente de conversa Android em Kotlin com Jetpack Compose, ViewModel e corout
 
 [Baixar Orbi.apk](https://github.com/ricardostange/Orbi/releases/latest/download/Orbi.apk)
 
-Configure sua chave DeepSeek no app. Toque em Falar: a transcrição é enviada ao endpoint oficial de chat usando deepseek-flash. A resposta aparece somente em texto, selecionável e com botão para copiar. O histórico recente é mantido apenas em memória; conversas não são gravadas em disco. Chamadas consomem o saldo da sua API. Integrações conectadas podem ser acionadas por voz usando ferramentas; listas locais também podem ser editadas pela tela.
+Configure sua chave DeepSeek no app. Toque em Falar: a transcrição é enviada ao endpoint oficial de chat usando deepseek-flash. A resposta aparece somente em texto, selecionável e com botão para copiar. O contexto recente da IA fica em memória; a aba Log salva os últimos 50 comandos no aparelho para depuração. Chamadas consomem o saldo da sua API. Integrações conectadas podem ser acionadas por voz usando ferramentas; listas locais também podem ser editadas pela tela.
 
 ## Spotify
 
@@ -28,3 +28,7 @@ Prompts editáveis, parâmetros de conexão e testes manuais isolados estão doc
 ## Listas (0.6)
 
 Abra **Menu → Listas** para criar suas listas e adicionar, marcar ou remover itens. Dados ficam no aparelho e a tela funciona sem internet. O chatbot também pode operar suas listas (com internet e API configurada): “Crie uma lista Compras”, “Adicione arroz e leite a Compras”, “Marque arroz como comprado”. Exclusões de listas sempre pedem confirmação na tela. Veja [docs/LISTS.md](docs/LISTS.md).
+
+### Log de comandos
+
+Menu → **Log** exibe os últimos 50 pedidos, salvos no aparelho. Abra um comando para acompanhar as mensagens enviadas/recebidas pela IA, ferramentas, argumentos, resultados e erros. Cada registro pode ser selecionado ou copiado. Chaves e tokens são ocultados; revise os dados pessoais antes de compartilhar.

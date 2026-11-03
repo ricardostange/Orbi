@@ -22,7 +22,8 @@ class ChatClient(
         }
     }
 
-    fun reply(key: String, text: String, onProgress: (String) -> Unit = {}): String {
+    fun reply(key: String, text: String, onProgress: (String) -> Unit = {},
+        onTrace: (String, String) -> Unit = { _, _ -> }): String {
         val messages = JSONArray().put(JSONObject().put("role", "system").put("content", prompts.system))
         for (turn in recentTurns) {
             val previous = JSONArray(turn)
@@ -39,7 +40,10 @@ class ChatClient(
         var calls = 0
         repeat(12) { step ->
             onProgress("LLM: solicitação ${step + 1}")
+            onTrace("Envio à IA · etapa ${step + 1}", JSONObject().put("messages", messages).put("tools", tools).toString())
+            val started = System.nanoTime()
             val message = gateway.complete(key, messages, tools, onProgress)
+            onTrace("Resposta da IA · etapa ${step + 1} · ${(System.nanoTime() - started) / 1_000_000} ms", message.toString())
             val toolCalls = message.optJSONArray("tool_calls")
             if (toolCalls == null || toolCalls.length() == 0) {
                 val content = message.optString("content").trim()
@@ -69,6 +73,8 @@ class ChatClient(
                 val call = toolCalls.getJSONObject(i)
                 val function = call.getJSONObject("function")
                 val name = function.getString("name")
+                val toolStarted = System.nanoTime()
+                onTrace("Chamada de ferramenta · $name", call.toString())
                 val result = try {
                     val args = JSONObject(function.getString("arguments"))
                     onProgress("Executando ferramenta: $name; ação=${args.optString("action", "não informada")}; argumentos=${SafeDiagnostics.json(args)}")
@@ -80,6 +86,7 @@ class ChatClient(
                     JSONObject().put("error", if (e is IllegalStateException || e is IllegalArgumentException)
                         e.message ?: "Ação inválida." else "Não foi possível executar a ação.").toString()
                 }
+                onTrace("Retorno de ferramenta · $name · ${(System.nanoTime() - toolStarted) / 1_000_000} ms", result)
                 onProgress("Resultado $name: ${runCatching { SafeDiagnostics.json(JSONObject(result)) }.getOrDefault("resultado não estruturado")}")
                 val error = runCatching { JSONObject(result).optString("error") }.getOrDefault("")
                 onProgress(if (error.isBlank()) "Ferramenta $name: resultado recebido." else "Ferramenta $name: $error")
