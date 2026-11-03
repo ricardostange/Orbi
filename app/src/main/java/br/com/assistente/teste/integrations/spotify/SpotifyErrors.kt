@@ -12,6 +12,7 @@ internal object SpotifyErrors {
     fun api(status: Int, reason: String, retryAfter: String?): String = when (status) {
         401 -> "Sessão Spotify inválida. Conecte novamente."
         403 -> when (reason) {
+            "INSUFFICIENT_SCOPE" -> "Permissão Spotify insuficiente. Reconecte para autorizar os escopos de reprodução."
             "PREMIUM_REQUIRED" -> "Este comando exige Spotify Premium na conta conectada."
             "RESTRICTION_VIOLATED" -> "O dispositivo recusou este comando. Abra o Spotify e verifique o dispositivo de reprodução."
             else -> "Spotify recusou o acesso. No painel do app, confira a conta em Users and Access e os requisitos de Premium do modo de desenvolvimento."
@@ -22,3 +23,4 @@ internal object SpotifyErrors {
     }
     private const val REDIRECT_URI = "orbi://callback"
 }
+

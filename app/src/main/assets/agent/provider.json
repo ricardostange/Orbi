@@ -1,0 +1,11 @@
+{
+  "provider": "DeepSeek",
+  "endpoint": "https://api.deepseek.com/chat/completions",
+  "model": "deepseek-flash",
+  "temperature": 1.0,
+  "max_tokens": 2048,
+  "connect_timeout_seconds": 20,
+  "read_timeout_seconds": 120,
+  "call_timeout_seconds": 150,
+  "extra_body": {"thinking": {"type": "disabled"}}
+}

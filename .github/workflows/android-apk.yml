@@ -20,6 +20,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Test standalone agent probe
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
       - name: Test, compile Kotlin and Compose, and lint
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --no-daemon
       - name: Build and verify signed APK
@@ -85,3 +87,4 @@ jobs:
           gh release edit "$tag" --draft=false --latest
           echo '### Download direto do APK' >> "$GITHUB_STEP_SUMMARY"
           echo "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/Orbi.apk" >> "$GITHUB_STEP_SUMMARY"
+
