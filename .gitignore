@@ -9,3 +9,7 @@ local.properties
 .gradle/
 .idea/
 *.iml
+
+
+__pycache__/
+*.pyc

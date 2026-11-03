@@ -1,12 +1,6 @@
 # Build e assinatura
 
-O script build.sh executa ECJ (Java para classes), d8 (classes para DEX), aapt2 (manifesto e recursos), empacotamento com Python, zipalign e apksigner.
-
-Dependências oficiais:
-- Android SDK: https://developer.android.com/tools
-- Eclipse ECJ 3.33.0: https://repo.maven.apache.org/maven2/org/eclipse/jdt/ecj/3.33.0/ecj-3.33.0.jar
-
-Para executar: configure ANDROID_JAR, BUILD_TOOLS e ECJ_JAR como descrito no README.
+O projeto usa Kotlin, Jetpack Compose e Gradle. Requer Java 17, Gradle 8.9 e Android SDK 35. Execute `gradle :app:assembleDebug` para gerar o APK debug e `bash build.sh` para o release assinado ou `bash scripts/test.sh` para testes, compilação e lint. Configure `ANDROID_HOME` com seu SDK (ou `sdk.dir` em `local.properties`, que não deve ser versionado).
 
 A chave original é uma chave de desenvolvimento, alias demo, senha android. Ela não é uma chave de produção. Para continuar atualizando o aplicativo existente, mantenha essa chave fora do Git e copie-a para development.jks antes do build. O .gitignore exclui chaves e binários.
 
@@ -27,3 +21,4 @@ Antes da primeira compilação, configure em Settings → Secrets and variables 
 Não envie essas informações ao Git. O alias permanece `demo`. O build verifica o SHA-256 do certificado original e recusa outra assinatura. A chave temporária é apagada ao terminar a etapa, inclusive em caso de erro. Ausência de secrets causa falha explícita; não é gerada uma nova chave.
 
 Localmente, exporte também `KEYSTORE_PASSWORD` e `KEY_PASSWORD`; `KEYSTORE_PATH` permite apontar para a chave fora do projeto. `VERSION_CODE` é opcional. No CI, o código de versão é 1000 + número da execução. Builds locais destinados a atualizar uma instalação do CI precisam usar um VERSION_CODE maior que o instalado. Reexecuções da mesma execução mantêm o código.
+

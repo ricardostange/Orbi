@@ -1,5 +1,7 @@
 package br.com.assistente.teste
 
+import br.com.assistente.teste.llm.*
+import java.io.File
 import br.com.assistente.teste.integrations.IntegrationRegistry
 import br.com.assistente.teste.integrations.spotify.SpotifyIntegration
 import br.com.assistente.teste.integrations.spotify.SpotifyTransport
@@ -19,7 +21,7 @@ class ChatClientTest {
     private val events = mutableListOf<String>()
     private val requests = mutableListOf<JSONArray>()
     private val responses = ArrayDeque<Pair<Int, String>>()
-    private val client = ChatClient(OkHttpClient.Builder().addInterceptor { chain ->
+    private val client = ChatClient(OpenAiCompatibleClient(OkHttpClient.Builder().addInterceptor { chain ->
         val buffer = Buffer()
         chain.request().body!!.writeTo(buffer)
         requests.add(JSONObject(buffer.readUtf8()).getJSONArray("messages"))
@@ -27,10 +29,10 @@ class ChatClientTest {
         Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
             .code(status).message("test")
             .body("""{"choices":[{"message":$message}]}""".toResponseBody()).build()
-    }.build(), IntegrationRegistry(listOf(SpotifyIntegration({ spotifyConnected }, SpotifyTransport { _, _, _, _ ->
+    }.build(), LlmConfig.fromJson(JSONObject(File("src/main/assets/agent/provider.json").readText()))), IntegrationRegistry(listOf(SpotifyIntegration({ spotifyConnected }, SpotifyTransport { _, _, _, _ ->
         executed++
         "{\"ok\":true}"
-    }))))
+    })))), AgentPrompts { File("src/main/assets/agent/prompts/$it").readText() })
 
     private fun answer(text: String) {
         responses.addLast(200 to JSONObject().put("role", "assistant").put("content", text).toString())
@@ -127,3 +129,4 @@ class ChatClientTest {
     }
 
 }
+
