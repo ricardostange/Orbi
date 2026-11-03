@@ -32,7 +32,7 @@ class ChatClientTest {
     }.build(), LlmConfig.fromJson(JSONObject(File("src/main/assets/agent/provider.json").readText()))), IntegrationRegistry(listOf(SpotifyIntegration({ spotifyConnected }, SpotifyTransport { _, _, _, _ ->
         executed++
         "{\"ok\":true}"
-    })))), AgentPrompts { File("src/main/assets/agent/prompts/$it").readText() })
+    }))), AgentPrompts { File("src/main/assets/agent/prompts/$it").readText() })
 
     private fun answer(text: String) {
         responses.addLast(200 to JSONObject().put("role", "assistant").put("content", text).toString())
