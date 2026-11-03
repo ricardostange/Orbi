@@ -20,7 +20,7 @@ import br.com.assistente.teste.ChatModel
 import br.com.assistente.teste.integrations.IntegrationsDialog
 import kotlinx.coroutines.launch
 
-enum class AppSection(val title: String) { HOME("Início"), LISTS("Listas"), SETTINGS("Configurações") }
+enum class AppSection(val title: String) { HOME("Início"), LISTS("Listas"), LOG("Log"), SETTINGS("Configurações") }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +73,7 @@ fun OrbiApp(model: ChatModel, section: AppSection, navigate: (AppSection) -> Uni
                         }
                     }
                     AppSection.LISTS -> ListsScreen(model, Modifier.padding(padding))
+                    AppSection.LOG -> LogScreen(model, Modifier.padding(padding))
                     AppSection.SETTINGS -> SettingsScreen(model, Modifier.padding(padding), { api = true }, { showIntegrations(true) })
                 }
             }
