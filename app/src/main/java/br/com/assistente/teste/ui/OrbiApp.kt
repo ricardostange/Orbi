@@ -79,11 +79,11 @@ fun OrbiApp(model: ChatModel, section: AppSection, navigate: (AppSection) -> Uni
         }
         val pendingDeletion by model.pendingListDeletion.collectAsState()
         pendingDeletion?.let { request ->
-            AlertDialog(onDismissRequest = { model.cancelListDeletion(request.id) },
+            AlertDialog(onDismissRequest = { if (!model.listsBusy) model.cancelListDeletion(request.id) },
                 title = { Text("Excluir lista?") },
                 text = { Text("Excluir “${request.name}” e seus ${request.itemCount} itens? Essa ação não pode ser desfeita.") },
                 confirmButton = { TextButton(enabled = !model.listsBusy, onClick = { model.confirmListDeletion(request.id) }) { Text("Excluir lista") } },
-                dismissButton = { TextButton(onClick = { model.cancelListDeletion(request.id) }) { Text("Cancelar") } })
+                dismissButton = { TextButton(enabled = !model.listsBusy, onClick = { model.cancelListDeletion(request.id) }) { Text("Cancelar") } })
         }
         model.listsError?.let { message ->
             AlertDialog(onDismissRequest = model::dismissListsError, title = { Text("Listas") }, text = { Text(message) },

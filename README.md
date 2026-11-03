@@ -4,7 +4,7 @@ Assistente de conversa Android em Kotlin com Jetpack Compose, ViewModel e corout
 
 [Baixar Orbi.apk](https://github.com/ricardostange/Orbi/releases/latest/download/Orbi.apk)
 
-Configure sua chave DeepSeek no app. Toque em Falar: a transcrição é enviada ao endpoint oficial de chat usando deepseek-flash. A resposta aparece somente em texto, selecionável e com botão para copiar. O histórico recente é mantido apenas em memória; conversas não são gravadas em disco. Chamadas consomem o saldo da sua API. Integrações conectadas podem ser acionadas por voz usando ferramentas; não há notas ou comandos fixos.
+Configure sua chave DeepSeek no app. Toque em Falar: a transcrição é enviada ao endpoint oficial de chat usando deepseek-flash. A resposta aparece somente em texto, selecionável e com botão para copiar. O histórico recente é mantido apenas em memória; conversas não são gravadas em disco. Chamadas consomem o saldo da sua API. Integrações conectadas podem ser acionadas por voz usando ferramentas; listas locais também podem ser editadas pela tela.
 
 ## Spotify
 
@@ -19,7 +19,7 @@ Build: Java 17, Android SDK 35 e Gradle 8.9. Execute `gradle :app:testDebugUnitT
 
 ## Interface e agente
 
-O menu lateral separa **Início** (conversa e botão Falar) de **Configurações** (API, modelo, integrações e diagnóstico). Respostas continuam selecionáveis e copiáveis. O Orbi responde por texto.
+O menu lateral reúne **Início** (conversa e botão Falar), **Listas** e **Configurações** (API, modelo, integrações e diagnóstico). Respostas continuam selecionáveis e copiáveis. O Orbi responde por texto.
 
 Prompts editáveis, parâmetros de conexão e testes manuais isolados estão documentados em [docs/AGENT.md](docs/AGENT.md). Alterações do backlog de novembro estão registradas em [docs/BACKLOG.md](docs/BACKLOG.md).
 

@@ -110,7 +110,7 @@ fun ListsScreen(model: ChatModel, modifier: Modifier = Modifier) {
                 }) { Text("Salvar") }
             }, dismissButton = { TextButton(enabled = !model.listsBusy, onClick = { editing = false }) { Text("Cancelar") } })
     }
-    if (removeItem != null && selected != null) {
+    if (removeItem != null) {
         AlertDialog(onDismissRequest = { removeId = null }, title = { Text("Remover item?") }, text = { Text("Remover “${removeItem.text}” de “${selected.name}”?") },
             confirmButton = { TextButton(enabled = !model.listsBusy, onClick = { model.removeListItem(selected.id, removeItem.id); removeId = null }) { Text("Remover") } },
             dismissButton = { TextButton(onClick = { removeId = null }) { Text("Cancelar") } })
