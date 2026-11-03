@@ -36,17 +36,17 @@ fun LogScreen(model: ChatModel, modifier: Modifier = Modifier) {
         }
         if (logs.isEmpty()) item { Text("Nenhum comando registrado. Faça um pedido ao Orbi para acompanhar o fluxo aqui.") }
         items(logs, key = { it.id }) { entry ->
-            val expanded = selected == entry.id
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(date.format(Date(entry.time)) + " · " + entry.status,
                         style = MaterialTheme.typography.labelMedium,
                         color = if (entry.status == "Erro") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                     SelectionContainer { Text(entry.command, style = MaterialTheme.typography.titleMedium,
-                        maxLines = if (expanded) Int.MAX_VALUE else 2, overflow = TextOverflow.Ellipsis) }
+                        maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    Text("${entry.events.size} etapas registradas", style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { selected = if (expanded) null else entry.id }) { Text(if (expanded) "Recolher" else "Ver etapas") }
-                        TextButton(onClick = { clipboard.setText(AnnotatedString(entry.report())) }) { Text("Copiar comando") }
+                        TextButton(onClick = { selected = entry.id }) { Text("Ver etapas") }
+                        TextButton(onClick = { clipboard.setText(AnnotatedString(entry.report())) }) { Text("Copiar log") }
                     }
                 }
             }
@@ -63,7 +63,10 @@ fun LogScreen(model: ChatModel, modifier: Modifier = Modifier) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(date.format(Date(event.time)) + " · " + event.title, style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary)
-                            SelectionContainer { Text(event.detail, style = MaterialTheme.typography.bodySmall) }
+                            val detail = remember(event.detail) {
+                                runCatching { org.json.JSONObject(event.detail).toString(2) }.getOrDefault(event.detail)
+                            }
+                            SelectionContainer { Text(detail, style = MaterialTheme.typography.bodySmall) }
                             HorizontalDivider()
                         }
                     }
