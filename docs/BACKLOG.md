@@ -24,7 +24,7 @@
 - Todas as configurações e conexões existentes continuam acessíveis e funcionais na nova tela.
 - Fechar o painel ou mudar de seção não apaga indevidamente o histórico da conversa nem as configurações salvas.
 
-**Status:** Implementado em código; aguardando validação automatizada e teste no aparelho.
+**Status:** Implementado. Validação automatizada acompanhada no [PR #1](https://github.com/ricardostange/Orbi/pull/1); validação no aparelho pendente.
 
 ### Separar e documentar a integração com LLMs e o agente
 
@@ -49,7 +49,7 @@
 - Nenhuma chave de API ou token precisa ser colocado nos arquivos de prompts, no repositório ou em logs.
 - As funcionalidades atuais continuam operando após a reorganização.
 
-**Status:** Implementado em código; aguardando validação automatizada e teste no aparelho.
+**Status:** Implementado. Validação automatizada acompanhada no [PR #1](https://github.com/ricardostange/Orbi/pull/1); validação no aparelho pendente.
 
 ### Simplificar e polir visualmente a interface (reduzir clutter)
 
@@ -70,7 +70,7 @@
 - As opções avançadas continuam disponíveis, porém não ficam visualmente expostas o tempo todo.
 - O visual é consistente, agradável e fácil de navegar em telas pequenas.
 
-**Status:** Implementado em código; aguardando validação automatizada e teste no aparelho.
+**Status:** Implementado. Validação automatizada acompanhada no [PR #1](https://github.com/ricardostange/Orbi/pull/1); validação no aparelho pendente.
 
 ### Diagnosticar e corrigir abertura e reprodução do Spotify pelo agente
 
@@ -98,4 +98,12 @@
 - Passar/pausar/retomar faixas continua funcionando (sem regressão).
 - Testes manuais documentados para app aberto/fechado, reprodução ativa/inativa e falhas HTTP; sem segredos nos logs.
 
-**Status:** Implementado em código; aguardando validação automatizada e teste no aparelho.
+**Status:** Implementado. Validação automatizada acompanhada no [PR #1](https://github.com/ricardostange/Orbi/pull/1); validação no aparelho pendente.
+
+## Entrega de implementação — 03/11/2026
+
+- Menu lateral com Início e Configurações; diagnóstico fora da conversa; respostas selecionáveis e copiáveis.
+- Pacote `llm`, prompts em `assets/agent/prompts`, parâmetros em `provider.json`, opções no aparelho e teste manual `scripts/llm_probe.py`.
+- Ferramenta `android_open_spotify` independente de OAuth e fluxo `spotify.play_query` com busca, seleção de dispositivo, play e verificação de estado.
+- Testes de histórico, tool calls, parâmetros, redigir credenciais, dispositivos inativos/restritos e falhas de reprodução; build e lint pelo GitHub Actions.
+- Instruções e cenários de teste real em [AGENT.md](AGENT.md). Os testes simulados não comprovam o Spotify Connect no aparelho do usuário.
