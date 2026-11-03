@@ -18,6 +18,7 @@ android {
         }
     }
     buildTypes { getByName("release") { signingConfig = signingConfigs.getByName("original") } }
+    testOptions { unitTests.isIncludeAndroidResources = true }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
@@ -30,6 +31,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }

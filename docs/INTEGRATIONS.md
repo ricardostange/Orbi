@@ -69,3 +69,9 @@ O Orbi recebe pedidos por voz, mas responde somente em texto. Perguntas, respost
 Ao receber o callback, a tela principal e Integrações mostram o andamento. Após a troca do código por tokens, o app consulta dispositivos automaticamente e mostra sucesso ou a falha de acesso. Token salvo e acesso à API são verificações diferentes.
 
 Chamadas escritas no conteúdo como JSON/DSML não são executadas como texto. O app solicita uma correção de protocolo uma vez e executa apenas `tool_calls` estruturados. Se não houver integração conectada ou a resposta continuar malformada, mostra um erro copiável. Testes simulam o ciclo HTTP completo, execução única, recuperação de chamada textual e bloqueio quando desconectado.
+
+### Retorno do navegador
+
+`SpotifyCallbackActivity` recebe o deep link e encaminha o URI original para `MainActivity`, inclusive quando a tela principal já está aberta. A validação aceita caminho vazio ou `/`, mantendo verificação de origem, `state`, prazo e PKCE. Caminhos inesperados, usuário/porta no URI e fragmentos são rejeitados. Retornos inválidos não são ignorados silenciosamente.
+
+O diagnóstico registra apenas esquema/host/caminho e presença dos parâmetros OAuth, sem valores de código ou state. Ao retomar o app sem callback, a interface informa que o retorno ainda não chegou. Testes Robolectric verificam resolução no manifesto, encaminhamento do intent, barra final e rejeição de origens inválidas. Isso não substitui a validação do login real em aparelho.

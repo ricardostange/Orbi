@@ -88,6 +88,6 @@ class SpotifyAuth(context: Context, private val client: OkHttpClient) {
         const val DEFAULT_CLIENT_ID = "c69bf2e430f743d6a84b9b3ff6a52b2e"
         const val REDIRECT_URI = "orbi://callback"
         const val SCOPES = "user-read-private user-read-playback-state user-read-currently-playing user-modify-playback-state user-read-recently-played user-library-read user-library-modify playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public"
-        fun isCallback(uri: Uri) = uri.scheme == "orbi" && uri.host == "callback" && uri.path.isNullOrEmpty() && uri.port == -1
+        fun isCallback(uri: Uri) = uri.scheme == "orbi" && uri.host == "callback" && (uri.path.isNullOrEmpty() || uri.path == "/") && uri.port == -1 && uri.userInfo == null && uri.fragment == null
     }
 }

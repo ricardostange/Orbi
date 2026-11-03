@@ -10,6 +10,7 @@ import br.com.assistente.teste.integrations.spotify.SpotifyAuth
 import br.com.assistente.teste.integrations.spotify.SpotifyClient
 import br.com.assistente.teste.integrations.spotify.SpotifyIntegration
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,6 +38,8 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     private val chat = ChatClient(client, integrations)
     private var activeTask: Job? = null
     private var pendingSpotifyCallback: Uri? = null
+    private var awaitingSpotifyBrowser = false
+    private var browserReturnJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -69,10 +72,16 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     fun connectSpotify(id: String, open: (Uri) -> Unit) = task(integration = true) {
         val uri = withContext(Dispatchers.IO) { spotifyAuth.authorize(id.trim()) }
         refreshSpotify()
-        open(uri)
         integrationStatus = "Conclua a autorização no navegador."
+        awaitingSpotifyBrowser = true
+        appendDiagnostic("Spotify: navegador aberto para autorização.")
+        try { open(uri) } catch (e: Exception) { awaitingSpotifyBrowser = false; throw e }
     }
     fun spotifyCallback(uri: Uri) {
+        awaitingSpotifyBrowser = false
+        browserReturnJob?.cancel()
+        // Log only the route and parameter presence, never the code, state or full URI.
+        appendDiagnostic("Retorno OAuth: esquema=${uri.scheme}; host=${uri.host}; caminho=${uri.path.orEmpty()}; código=${uri.getQueryParameter("code") != null}; state=${uri.getQueryParameter("state") != null}; erro=${uri.getQueryParameter("error") != null}.")
         // Browser callbacks must survive a chat/request already in progress.
         if (pendingSpotifyCallback != null) return
         pendingSpotifyCallback = uri
@@ -86,6 +95,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                         spotifyAuth.complete(uri)
                         chat.clearHistory()
                     }
+                    appendDiagnostic("Spotify: código validado e tokens salvos.")
                     refreshSpotify()
                     integrationStatus = "Spotify autorizado. Verificando acesso e dispositivos…"
                     checkSpotifyConnection()
@@ -135,12 +145,22 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                 }
                 if (integration) integrationStatus = "Spotify: $message" else answer = message
             } finally {
-                try {
-                refreshSpotify()
-                if (spotifyConnected && pendingSpotifyCallback == null)
-                    integrationStatus = "Spotify autorizado neste aparelho. Use Testar conexão para verificar o acesso."
-            } catch (_: Exception) { spotifyConnected = false }
+                try { refreshSpotify() } catch (_: Exception) { spotifyConnected = false }
                 busy = false
+            }
+        }
+    }
+    private fun appendDiagnostic(event: String) {
+        diagnostics = (diagnostics + "\n" + event).trim().takeLast(12_000)
+    }
+    fun browserReturned() {
+        if (!awaitingSpotifyBrowser) return
+        browserReturnJob?.cancel()
+        browserReturnJob = viewModelScope.launch {
+            delay(1500) // Allow onNewIntent to deliver a callback before reporting a missing return.
+            if (awaitingSpotifyBrowser && pendingSpotifyCallback == null) {
+                integrationStatus = "O Orbi voltou ao primeiro plano, mas ainda não recebeu o retorno de autorização do Spotify. Se você já aceitou, copie o diagnóstico."
+                appendDiagnostic("Spotify: app retomado sem callback OAuth recebido.")
             }
         }
     }

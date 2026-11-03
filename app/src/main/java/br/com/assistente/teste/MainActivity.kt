@@ -24,7 +24,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
 import java.util.Locale
 import br.com.assistente.teste.integrations.IntegrationsDialog
-import br.com.assistente.teste.integrations.spotify.SpotifyAuth
 
 class MainActivity : ComponentActivity() {
     private val model: ChatModel by viewModels()
@@ -72,13 +71,17 @@ class MainActivity : ComponentActivity() {
                 if (integrations) IntegrationsDialog(model, ::openBrowser) { integrations = false }
             }
         }
-        if (intent.data?.let { SpotifyAuth.isCallback(it) } == true) handleSpotify(intent)
+        if (intent.data != null && intent.action == Intent.ACTION_VIEW) handleSpotify(intent)
         else if (savedInstanceState == null && isAssist(intent)) window.decorView.post { listen() }
+    }
+    override fun onResume() {
+        super.onResume()
+        model.browserReturned()
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.data?.let { SpotifyAuth.isCallback(it) } == true) handleSpotify(intent)
+        if (intent.data != null && intent.action == Intent.ACTION_VIEW) handleSpotify(intent)
         else if (isAssist(intent)) listen()
     }
     private fun handleSpotify(intent: Intent) {
