@@ -5,8 +5,9 @@
 1. Crie um aplicativo no [Spotify for Developers](https://developer.spotify.com/dashboard), com Web API habilitada.
 2. Cadastre exatamente o Redirect URI `orbi://callback`.
 3. No modo de desenvolvimento, adicione a conta que usará o Orbi aos usuários autorizados no painel. O Spotify exige Premium do proprietário do app nesse modo e limita os usuários autorizados.
-4. No Orbi, abra **Integrações**, confira o **Client ID** pré-preenchido (`c69bf2e430f743d6a84b9b3ff6a52b2e`) ou informe o de outro app e toque em **Conectar Spotify**. Não cole o Client Secret: ele não é usado nem deve ser distribuído em um APK.
-5. Autorize no navegador e retorne ao Orbi. Confira o resultado em Integrações.
+4. No Orbi, abra **Integrações**, em **Configuração do Spotify**, confira o **Client ID** pré-preenchido (`c69bf2e430f743d6a84b9b3ff6a52b2e`) ou informe o de outro app e toque em **Conectar Spotify**. Não cole o Client Secret: ele não é usado nem deve ser distribuído em um APK.
+5. Autorize no navegador. Ao retornar, o Orbi abre Integrações automaticamente e mostra o resultado real. Use **Testar conexão** para verificar acesso e dispositivos; **Abrir Spotify** ajuda a ativar a reprodução.
+   Se o navegador mostrar `INVALID_CLIENT` ou `Invalid redirect URI` antes de retornar, abra **Configuração do Spotify**: copie o Redirect URI e salve-o no painel do app correspondente ao Client ID. Confirme a conta em **Users and Access**.
 6. Para controlar por voz, configure também a chave DeepSeek em **Configurar API**. Os botões Retomar, Pausar e Próxima não precisam dessa chave.
 
 Exemplos: “toque [música]”, “pause o Spotify”, “volume em 30%”, “ative o aleatório”, “repita esta música”, “avance para um minuto”, “quais dispositivos estão disponíveis?”, “toque na sala”, “adicione esta música à fila”, “salve esta música”, “crie uma playlist chamada Viagem”, “adicione esta música à playlist Viagem”. Pedidos ambíguos podem exigir esclarecimento.
@@ -58,3 +59,5 @@ Os testes JVM cobrem registro/desconexão de provedores, schema, roteamento de r
 Checklist em aparelho: autorização aceita/negada; retorno após fechar o processo durante login; rejeição de `state` inválido e callback repetido; retomada após expiração do token; ausência de dispositivo; Premium/permissões; erro de rede e rate limit; desconectar e conectar outra conta; comandos por voz e botões; conferir playlist/biblioteca após alterações.
 
 Referências: [PKCE](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow), [migração Dev Mode](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide).
+
+Reconectar ao mesmo Client ID preserva a sessão anterior até a nova autorização ser concluída. Trocar o Client ID limpa os tokens do aplicativo anterior. O retorno de autorização aguarda pedidos em andamento, sem ser descartado por `busy`.

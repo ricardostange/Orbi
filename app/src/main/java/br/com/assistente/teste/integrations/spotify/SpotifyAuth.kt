@@ -22,17 +22,19 @@ class SpotifyAuth(context: Context, private val client: OkHttpClient) {
         require(clientId.matches(Regex("[a-fA-F0-9]{32}"))) { "Informe um Client ID válido do Spotify." }
         val verifier = random()
         val state = random()
-        val data = record().put("client_id", clientId).put("verifier", verifier)
+        val data = record()
+        if (data.optString("client_id") != clientId) {
+            data.remove("access_token"); data.remove("refresh_token"); data.remove("expires_at")
+        }
+        data.put("client_id", clientId).put("verifier", verifier)
             .put("state", state).put("started_at", System.currentTimeMillis())
-        // Connecting another client must not reuse the previous client's tokens.
-        data.remove("access_token"); data.remove("refresh_token")
         store.save(data.toString())
         val challenge = encode(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII)))
         return Uri.parse("https://accounts.spotify.com/authorize").buildUpon()
             .appendQueryParameter("client_id", clientId).appendQueryParameter("response_type", "code")
             .appendQueryParameter("redirect_uri", REDIRECT_URI).appendQueryParameter("state", state)
             .appendQueryParameter("code_challenge_method", "S256").appendQueryParameter("code_challenge", challenge)
-            .appendQueryParameter("scope", SCOPES).build()
+            .appendQueryParameter("scope", SCOPES).appendQueryParameter("show_dialog", "true").build()
     }
 
     @Synchronized fun complete(uri: Uri) {
@@ -56,18 +58,19 @@ class SpotifyAuth(context: Context, private val client: OkHttpClient) {
         if (!forceRefresh && data.optLong("expires_at") > System.currentTimeMillis() + 60_000)
             return data.getString("access_token")
         return exchange(data, FormBody.Builder().add("grant_type", "refresh_token")
-            .add("refresh_token", data.getString("refresh_token")))
+            .add("refresh_token", data.getString("refresh_token")), invalidateSessionOnFailure = true)
     }
 
-    private fun exchange(data: JSONObject, form: FormBody.Builder): String {
+    private fun exchange(data: JSONObject, form: FormBody.Builder, invalidateSessionOnFailure: Boolean = false): String {
         val request = Request.Builder().url("https://accounts.spotify.com/api/token")
             .post(form.add("client_id", data.getString("client_id")).build()).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                if (response.code == 400 || response.code == 401) {
+                val reason = runCatching { JSONObject(response.body?.string().orEmpty()).optString("error") }.getOrDefault("")
+                if (reason == "invalid_grant" && invalidateSessionOnFailure) {
                     data.remove("access_token"); data.remove("refresh_token"); store.save(data.toString())
                 }
-                error("Não foi possível autorizar o Spotify (HTTP ${response.code}). Tente conectar novamente.")
+                error(SpotifyErrors.authorization(response.code, reason))
             }
             val result = JSONObject(response.body?.string() ?: error("Resposta vazia do Spotify."))
             data.put("access_token", result.getString("access_token"))

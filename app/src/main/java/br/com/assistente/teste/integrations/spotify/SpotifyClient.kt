@@ -22,13 +22,12 @@ class SpotifyClient(private val client: OkHttpClient, private val auth: SpotifyA
                 .method(method, payload).build()
             client.newCall(request).execute().use { response ->
                 if (response.code == 401 && attempt == 0) return@use
-                if (!response.isSuccessful) error(when (response.code) {
-                    401 -> "Sessão Spotify inválida. Conecte novamente."
-                    403 -> "Spotify recusou a operação. Verifique Premium, permissões, usuários autorizados e limitações do dispositivo."
-                    404 -> "Nenhum dispositivo ativo ou recurso não encontrado. Abra o Spotify e inicie uma música."
-                    429 -> "Limite do Spotify atingido. Aguarde ${response.header("Retry-After") ?: "alguns"} segundos."
-                    else -> "Spotify indisponível (HTTP ${response.code}). Não repita alterações sem conferir o resultado."
-                })
+                if (!response.isSuccessful) {
+                    val reason = runCatching {
+                        JSONObject(response.body?.string().orEmpty()).optJSONObject("error")?.optString("reason").orEmpty()
+                    }.getOrDefault("")
+                    error(SpotifyErrors.api(response.code, reason, response.header("Retry-After")))
+                }
                 val raw = response.body?.string().orEmpty()
                 if (raw.isBlank()) return JSONObject().put("ok", true)
                     .put("message", if (method == "GET") "Nenhuma reprodução ou dado disponível." else "Comando aceito pelo Spotify.").toString()

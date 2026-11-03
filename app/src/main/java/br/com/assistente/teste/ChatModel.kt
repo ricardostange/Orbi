@@ -10,6 +10,7 @@ import br.com.assistente.teste.integrations.spotify.SpotifyAuth
 import br.com.assistente.teste.integrations.spotify.SpotifyClient
 import br.com.assistente.teste.integrations.spotify.SpotifyIntegration
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -34,6 +35,8 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     private val spotify = SpotifyIntegration({ spotifyAuth.connected }, SpotifyClient(spotifyHttp, spotifyAuth))
     private val integrations = IntegrationRegistry(listOf(spotify))
     private val chat = ChatClient(client, integrations)
+    private var activeTask: Job? = null
+    private var pendingSpotifyCallback: Uri? = null
 
     init {
         viewModelScope.launch {
@@ -63,13 +66,37 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
         open(uri)
         integrationStatus = "Conclua a autorização no navegador."
     }
-    fun spotifyCallback(uri: Uri) = task(integration = true) {
-        withContext(Dispatchers.IO) {
-            spotifyAuth.complete(uri)
-            chat.clearHistory()
+    fun spotifyCallback(uri: Uri) {
+        // Browser callbacks must survive a chat/request already in progress.
+        if (pendingSpotifyCallback != null) return
+        pendingSpotifyCallback = uri
+        viewModelScope.launch {
+            try {
+                activeTask?.join()
+                task(integration = true) {
+                    integrationStatus = "Conectando ao Spotify…"
+                    withContext(Dispatchers.IO) {
+                        spotifyAuth.complete(uri)
+                        chat.clearHistory()
+                    }
+                    refreshSpotify()
+                    integrationStatus = "Spotify conectado. Use Testar conexão para verificar os dispositivos."
+                }
+                activeTask?.join()
+            } finally { pendingSpotifyCallback = null }
         }
-        refreshSpotify()
-        integrationStatus = "Spotify conectado. Peça uma música ou use os controles."
+    }
+    fun testSpotify() = task(integration = true) {
+        integrationStatus = "Testando conexão…"
+        val devices = withContext(Dispatchers.IO) {
+            JSONObject(spotify.execute("spotify", JSONObject().put("action", "devices"))).getJSONArray("devices")
+        }
+        integrationStatus = if (devices.length() == 0)
+            "Conexão confirmada. Nenhum dispositivo disponível: abra o Spotify e inicie uma música, depois volte ao Orbi."
+        else {
+            val names = (0 until devices.length()).joinToString(", ") { devices.getJSONObject(it).optString("name", "Dispositivo") }
+            "Conexão confirmada. Dispositivos: $names."
+        }
     }
     fun disconnectSpotify() = task(integration = true) {
         withContext(Dispatchers.IO) {
@@ -86,7 +113,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     private fun task(integration: Boolean = false, block: suspend () -> Unit) {
         if (busy) return
         busy = true
-        viewModelScope.launch {
+        activeTask = viewModelScope.launch {
             try { block() }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) {

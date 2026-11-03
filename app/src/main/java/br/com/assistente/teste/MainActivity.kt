@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var pending: String? = null
     private var listening by mutableStateOf(false)
     private var voiceError by mutableStateOf<String?>(null)
+    private var integrations by mutableStateOf(false)
     private var spokenId = 0
     private val speech = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         listening = false
@@ -41,11 +42,11 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         spokenId = savedInstanceState?.getInt("spokenId") ?: 0
+        integrations = savedInstanceState?.getBoolean("integrations") ?: false
         tts = TextToSpeech(this, this)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB7F58A), background = Color(0xFF0E1923))) {
                 var settings by remember { mutableStateOf(false) }
-                var integrations by remember { mutableStateOf(false) }
                 LaunchedEffect(model.replyId) {
                     if (model.replyId > spokenId) { spokenId = model.replyId; speak(model.answer) }
                 }
@@ -68,10 +69,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 if (integrations) IntegrationsDialog(model, ::openBrowser) { integrations = false }
             }
         }
-        if (savedInstanceState == null) {
-            if (intent.data?.let { SpotifyAuth.isCallback(it) } == true) handleSpotify(intent)
-            else if (isAssist(intent)) window.decorView.post { listen() }
-        }
+        if (intent.data?.let { SpotifyAuth.isCallback(it) } == true) handleSpotify(intent)
+        else if (savedInstanceState == null && isAssist(intent)) window.decorView.post { listen() }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -82,7 +81,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private fun handleSpotify(intent: Intent) {
         intent.data?.let(model::spotifyCallback)
         intent.data = null // Do not reprocess an authorization code after recreation.
-        voiceError = "Retorno do Spotify recebido. Veja o resultado em Integrações."
+        voiceError = null
+        integrations = true
     }
     private fun openBrowser(uri: Uri) { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
     private fun isAssist(intent: Intent) = intent.action == Intent.ACTION_ASSIST || intent.action == "android.intent.action.VOICE_ASSIST"
@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             tts?.speak(part, if(index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "reply-$index")
         }
     }
-    override fun onSaveInstanceState(outState: Bundle) { outState.putInt("spokenId", spokenId); super.onSaveInstanceState(outState) }
+    override fun onSaveInstanceState(outState: Bundle) { outState.putInt("spokenId", spokenId); outState.putBoolean("integrations", integrations); super.onSaveInstanceState(outState) }
     override fun onDestroy() { pending = null; tts?.stop(); tts?.shutdown(); super.onDestroy() }
 }
 
