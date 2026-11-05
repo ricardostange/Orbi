@@ -17,7 +17,7 @@
 Os caminhos Kotlin são relativos a `app/src/main/java/br/com/assistente/teste/`.
 Os Markdown são carregados pelo aplicativo, não apenas documentação. Edite-os e gere um novo APK; não é necessário alterar Kotlin para mudar instruções. O prompt Spotify só é anexado quando a ferramenta está conectada.
 
-O contrato `LlmGateway` separa transporte e agente. A UI conhece `ChatModel`, não requisições HTTP. Os esquemas JSON, allowlist de ações, validações de IDs/intervalos, autenticação, tratamento de respostas, limites de 6 etapas/8 ações e histórico de até 5 turnos permanecem em código: instruções em linguagem natural não substituem esses controles.
+O contrato `LlmGateway` separa transporte e agente. A UI conhece `ChatModel`, não requisições HTTP. Os esquemas JSON, allowlist de ações, validações de IDs/intervalos, autenticação, tratamento de respostas, limites de 12 etapas/40 ações e histórico de até 5 turnos permanecem em código: instruções em linguagem natural não substituem esses controles.
 
 ## Configurar no celular
 
@@ -100,3 +100,14 @@ Os registros atualizam enquanto o pedido está em andamento. Ao reabrir o app, p
 Cada evento tem até cerca de 16 mil caracteres; cada comando tem orçamento de 120 mil caracteres/200 eventos, com indicação explícita de abreviação/omissão. Resposta final e erro preservam até 4 mil caracteres adicionais se o orçamento foi atingido. Falha de armazenamento é exibida na aba e não impede a execução do comando. Limpar log exige confirmação na interface e fica indisponível durante pedidos.
 
 Testes: `CommandLogsTest` cobre retenção/ordem, reabertura, interrupção, limpeza, sanitização e tamanho; `ChatClientTest` cobre a ordem das trocas e correlação das ferramentas sem duplicar ações. Validação em aparelho: navegar para Log durante pedido; abrir etapas e copiar; fechar/reabrir; executar 51 pedidos; conferir rotação e fonte ampliada; limpar e conferir que listas/conexões permanecem intactas.
+
+## Eficiência e correção do ciclo genérico
+
+- Histórico: até cinco turnos completos e 16.000 caracteres serializados. Evicção do mais antigo, sem separar chamadas de seus resultados nem truncar IDs/JSON. O prompt informa quando turnos foram omitidos; referências ausentes exigem esclarecimento. O turno atual e resultados atuais permanecem integrais.
+- A seleção é uma janela por recência e orçamento, não um classificador semântico. Não há chamada extra de resumo nem filtro de ferramentas por palavras-chave que possa esconder capacidades relevantes.
+- Validação estrutural do lote antes de efeitos: IDs não vazios/únicos no pedido e envelopes de função válidos. Argumentos são validados pelo schema anunciado (tipo, enum, obrigatórios, campos adicionais, limites numéricos e arrays), além das validações de domínio.
+- Falhas do modelo após um lote de ferramentas preservam chamadas e resultados no histórico com indicação de interrupção. Não há repetição automática de ações.
+- Respostas com finish_reason=length/content_filter são rejeitadas antes de despachar suas ferramentas. Erros de transporte informam resultado desconhecido; erros internos incluem a classe, sem expor stack trace.
+- Diagnóstico informa caracteres de histórico/mensagens/schemas e tokens de entrada/saída quando o provedor retorna usage. Caracteres não são estimativa de tokens.
+- O estado Processado indica término do processamento, não sucesso de uma ação externa. A resposta deve distinguir envio, observação e confirmação, sem inventar causas de erro.
+- Execução de ferramentas continua sequencial: não se presume que chamadas sejam independentes ou livres de efeitos. Não há lógica nova específica de reprodução nem alterações nas integrações Spotify.

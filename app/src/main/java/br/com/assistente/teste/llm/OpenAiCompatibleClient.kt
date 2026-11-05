@@ -35,10 +35,17 @@ class OpenAiCompatibleClient(client: OkHttpClient, private val config: LlmConfig
                     else -> "Provedor indisponível (HTTP ${response.code}). Tente novamente."
                 }
             }
-            val choice = try {
+            val envelope = try {
                 JSONObject(response.body?.string() ?: error("Resposta vazia."))
-                    .getJSONArray("choices").getJSONObject(0)
             } catch (_: org.json.JSONException) { error("Resposta incompatível com chat/completions. Confira endpoint e modelo.") }
+            val choice = envelope.getJSONArray("choices").getJSONObject(0)
+            val finishReason = choice.optString("finish_reason")
+            check(finishReason != "length" && finishReason != "content_filter") {
+                "O modelo não concluiu a resposta (finish_reason=$finishReason). Nenhuma ferramenta desta resposta foi executada."
+            }
+            envelope.optJSONObject("usage")?.let { usage ->
+                onProgress("LLM: tokens entrada=${usage.optLong("prompt_tokens", -1)}; saída=${usage.optLong("completion_tokens", -1)}; total=${usage.optLong("total_tokens", -1)}")
+            }
             val result = choice.getJSONObject("message")
             // Do not log the raw body, credentials, user text, or tool arguments.
             onProgress("LLM: finish_reason=${choice.optString("finish_reason", "não informado")}; chamadas estruturadas=${result.optJSONArray("tool_calls")?.length() ?: 0}")

@@ -129,7 +129,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                             viewModelScope.launch { appendDiagnostic(event) }
                         }, onTrace = { title, detail -> commandLogs.event(id, title, detail, secrets) })
                     commandLogs.event(id, "Resposta final", reply, secrets)
-                    commandLogs.finish(id, "Concluído")
+                    commandLogs.finish(id, "Processado")
                     reply
                 } catch (e: CancellationException) {
                     commandLogs.finish(id, "Interrompido")

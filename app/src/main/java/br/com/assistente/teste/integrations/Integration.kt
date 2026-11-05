@@ -24,6 +24,9 @@ class IntegrationRegistry(private val providers: List<Integration>) {
         val provider = providers.firstOrNull { integration ->
             integration.connected && integration.tools.any { it.getJSONObject("function").getString("name") == name }
         } ?: error("Integração desconectada ou ferramenta desconhecida.")
+        val schema = provider.tools.first { it.getJSONObject("function").getString("name") == name }
+            .getJSONObject("function").getJSONObject("parameters")
+        ToolArguments.validate(arguments, schema)
         return provider.execute(name, arguments)
     }
 }
