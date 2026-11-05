@@ -119,12 +119,15 @@ class ChatClient(
                 onTrace("Chamada de ferramenta · $name", call.toString())
                 val result = try {
                     val args = JSONObject(function.getString("arguments"))
-                    onProgress("Executando ferramenta: $name; ação=${args.optString("action", "não informada")}; argumentos=${SafeDiagnostics.json(args)}")
+                    onProgress("Executando ferramenta: $name")
                     integrations.execute(name, args)
                 } catch (e: CancellationException) { throw e
                 } catch (e: java.io.IOException) {
                     JSONObject().put("error", "Falha de conexão. O comando pode ter sido recebido; consulte o estado antes de repetir.")
                         .put("error_type", "transport").put("outcome", "unknown").toString()
+                } catch (e: br.com.assistente.teste.integrations.ToolArgumentException) {
+                    JSONObject().put("error", e.message).put("error_type", "invalid_arguments")
+                        .put("outcome", "not_executed").toString()
                 } catch (e: org.json.JSONException) {
                     JSONObject().put("error", "Argumentos ou resposta JSON inválidos. Consulte o estado antes de repetir uma ação.")
                         .put("error_type", "invalid_json").put("outcome", "unknown").toString()
@@ -134,7 +137,6 @@ class ChatClient(
                         .put("error_type", e.javaClass.simpleName).put("outcome", "unknown").toString()
                 }
                 onTrace("Retorno de ferramenta · $name · ${(System.nanoTime() - toolStarted) / 1_000_000} ms", result)
-                onProgress("Resultado $name: ${runCatching { SafeDiagnostics.json(JSONObject(result)) }.getOrDefault("resultado não estruturado")}")
                 val error = runCatching { JSONObject(result).optString("error") }.getOrDefault("")
                 onProgress(if (error.isBlank()) "Ferramenta $name: resultado recebido." else "Ferramenta $name: $error")
                 messages.put(JSONObject().put("role", "tool").put("tool_call_id", call.getString("id")).put("content", result))

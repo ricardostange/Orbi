@@ -111,3 +111,5 @@ Testes: `CommandLogsTest` cobre retenção/ordem, reabertura, interrupção, lim
 - Diagnóstico informa caracteres de histórico/mensagens/schemas e tokens de entrada/saída quando o provedor retorna usage. Caracteres não são estimativa de tokens.
 - O estado Processado indica término do processamento, não sucesso de uma ação externa. A resposta deve distinguir envio, observação e confirmação, sem inventar causas de erro.
 - Execução de ferramentas continua sequencial: não se presume que chamadas sejam independentes ou livres de efeitos. Não há lógica nova específica de reprodução nem alterações nas integrações Spotify.
+
+Argumentos e retornos completos aparecem uma vez por execução nos eventos de ferramenta; diagnósticos de progresso não duplicam esses payloads. Erros de schema usam outcome=not_executed, enquanto falhas após despacho permanecem inconclusivas.

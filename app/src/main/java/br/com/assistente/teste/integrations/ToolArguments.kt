@@ -3,8 +3,13 @@ package br.com.assistente.teste.integrations
 import org.json.JSONArray
 import org.json.JSONObject
 
+class ToolArgumentException(message: String) : IllegalArgumentException(message)
+
 /** Validate the shared schema subset before dispatch; providers retain domain validation. */
 object ToolArguments {
+    private inline fun require(condition: Boolean, message: () -> String) {
+        if (!condition) throw ToolArgumentException(message())
+    }
     fun validate(value: Any, schema: JSONObject, path: String = "arguments") {
         val type = schema.optString("type")
         val valid = when (type) {
