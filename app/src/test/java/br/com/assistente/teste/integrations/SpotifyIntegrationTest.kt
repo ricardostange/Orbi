@@ -42,7 +42,7 @@ class SpotifyIntegrationTest {
             assertThrows(IllegalArgumentException::class.java) { run("""{"action":"volume","volume_percent":$value}""") }
         }
         assertThrows(IllegalArgumentException::class.java) { run("""{"action":"play","uris":["https://evil.test"]}""") }
-        assertThrows(IllegalStateException::class.java) { run("""{"action":"https://evil.test"}""") }
+        assertThrows(ToolArgumentException::class.java) { run("""{"action":"https://evil.test"}""") }
         assertTrue(calls.isEmpty())
     }
     @Test fun `search uses dev mode limit and allows pagination on playlists`() {

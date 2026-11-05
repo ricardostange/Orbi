@@ -146,5 +146,59 @@ class ChatClientTest {
         assertEquals(3, requests.size)
     }
 
-}
 
+    @Test fun `history budget evicts whole turns and declares missing context`() {
+        repeat(5) {
+            answer("Resposta $it " + "x".repeat(4000))
+            client.reply("key", "Pedido $it")
+        }
+        val messages = requests.last()
+        assertTrue(messages.getJSONObject(0).getString("content").contains("omitidos"))
+        assertEquals("Pedido 1", messages.getJSONObject(1).getString("content"))
+        assertTrue(events.none { it.contains("private-key") })
+    }
+
+    @Test fun `failure after a tool retains its result for the next request`() {
+        spotifyConnected = true
+        responses.addLast(200 to """{"role":"assistant","tool_calls":[{"id":"done","type":"function","function":{"name":"spotify","arguments":"{\"action\":\"pause\"}"}}]}""")
+        responses.addLast(500 to "{}")
+        assertThrows(IllegalStateException::class.java) { client.reply("key", "Pause") }
+        answer("Vou verificar")
+        client.reply("key", "O que aconteceu?")
+        val messages = requests.last()
+        assertEquals("tool", messages.getJSONObject(3).getString("role"))
+        assertEquals("done", messages.getJSONObject(3).getString("tool_call_id"))
+        assertTrue(messages.getJSONObject(4).getString("content").contains("interrompido"))
+        assertEquals(1, executed)
+    }
+
+    @Test fun `duplicate call IDs reject the entire batch before side effects`() {
+        spotifyConnected = true
+        val call = JSONObject().put("id", "duplicate").put("type", "function").put("function",
+            JSONObject().put("name", "spotify").put("arguments", """{"action":"pause"}"""))
+        responses.addLast(200 to JSONObject().put("role", "assistant")
+            .put("tool_calls", JSONArray().put(call).put(call)).toString())
+        assertThrows(IllegalStateException::class.java) { client.reply("key", "Pause") }
+        assertEquals(0, executed)
+    }
+
+    @Test fun `invalid argument type returns error without dispatch`() {
+        spotifyConnected = true
+        val call = JSONObject().put("id", "bad-args").put("type", "function").put("function",
+            JSONObject().put("name", "spotify").put("arguments", """{"action":"volume","volume_percent":"100"}"""))
+        responses.addLast(200 to JSONObject().put("role", "assistant").put("tool_calls", JSONArray().put(call)).toString())
+        answer("Não executado")
+        client.reply("key", "Volume")
+        assertEquals(0, executed)
+        assertTrue(requests.last().getJSONObject(3).getString("content").contains("Tipo inválido"))
+    }
+
+    @Test fun `truncated response cannot execute a tool`() {
+        val gateway = OpenAiCompatibleClient(OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("test")
+                .body("""{"choices":[{"finish_reason":"length","message":{"role":"assistant","content":"incompleto"}}]}""".toResponseBody()).build()
+        }.build(), LlmConfig.fromJson(JSONObject(File("src/main/assets/agent/provider.json").readText())))
+        assertThrows(IllegalStateException::class.java) { gateway.complete("key", JSONArray(), JSONArray()) {} }
+    }
+
+}
