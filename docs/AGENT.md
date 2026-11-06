@@ -154,7 +154,8 @@ Testes: `CommandLogsTest` cobre retenção/ordem, reabertura, interrupção, lim
 
 ## Eficiência e correção do ciclo genérico
 
-- Histórico: até cinco turnos completos e 16.000 caracteres serializados. Evicção do mais antigo, sem separar chamadas de seus resultados nem truncar IDs/JSON. O prompt fixo avisa que o histórico pode omitir turnos; o contador exato fica apenas no diagnóstico; referências ausentes exigem esclarecimento. O turno atual e resultados atuais permanecem integrais.
+- Histórico: até cinco turnos completos e 50.000 caracteres serializados. Evicção do mais antigo, sem separar chamadas de seus resultados nem truncar IDs/JSON. O prompt fixo avisa que o histórico pode omitir turnos; o contador exato fica apenas no diagnóstico; referências ausentes exigem esclarecimento. O turno atual e resultados atuais permanecem integrais.
+- Após cinco minutos de inatividade desde o término do último pedido (inclusive erro/cancelamento), o próximo pedido reinicia o contexto. O relógio monotônico inclui suspensão do aparelho; o Log não é apagado. Interações contínuas renovam o prazo, sem expirar mensagens individualmente.
 - A seleção é uma janela por recência e orçamento, não um classificador semântico. Não há chamada extra de resumo nem filtro de ferramentas por palavras-chave que possa esconder capacidades relevantes.
 - Validação estrutural do lote antes de efeitos: IDs não vazios/únicos no pedido e envelopes de função válidos. Argumentos são validados pelo schema anunciado (tipo, enum, obrigatórios, campos adicionais, limites numéricos e arrays), além das validações de domínio.
 - Falhas do modelo após um lote de ferramentas preservam chamadas e resultados no histórico com indicação de interrupção. Não há repetição automática de ações.

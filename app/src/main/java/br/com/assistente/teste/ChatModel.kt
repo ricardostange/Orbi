@@ -85,7 +85,8 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     val agentSettings = AgentSettings(app)
     var llmConfig by mutableStateOf(agentSettings.load()); private set
     private var chat = createChat()
-    private fun createChat() = ChatClient(OpenAiCompatibleClient(client, llmConfig), integrations, agentSettings.prompts())
+    private fun createChat() = ChatClient(OpenAiCompatibleClient(client, llmConfig), integrations, agentSettings.prompts(),
+        elapsedRealtime = { android.os.SystemClock.elapsedRealtime() })
     fun configureLlm(config: LlmConfig) {
         check(!busy) { "Aguarde o pedido atual terminar." }
         agentSettings.save(config)

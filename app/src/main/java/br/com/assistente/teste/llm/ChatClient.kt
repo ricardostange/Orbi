@@ -8,15 +8,19 @@ import org.json.JSONObject
 class ChatClient(
     private val gateway: LlmGateway,
     private val integrations: IntegrationRegistry,
-    private val prompts: AgentPrompts
+    private val prompts: AgentPrompts,
+    private val elapsedRealtime: () -> Long = { System.nanoTime() / 1_000_000 }
 ) {
     private val recentTurns = ArrayDeque<String>()
     private var omittedTurns = 0
-    private val historyCharacterBudget = 16_000
+    private val historyCharacterBudget = 50_000
+    private val historyIdleTimeoutMs = 5 * 60 * 1_000L
+    private var lastReplyFinishedAt: Long? = null
 
     fun clearHistory() {
         recentTurns.clear()
         omittedTurns = 0
+        lastReplyFinishedAt = null
     }
 
     private fun remember(turn: JSONArray) {
@@ -31,6 +35,22 @@ class ChatClient(
     fun reply(key: String, text: String, onProgress: (String) -> Unit = {},
         onTrace: (String, String) -> Unit = { _, _ -> }, onUsage: (Long?) -> Unit = {},
         onText: (String) -> Unit = {}): String {
+        val finishedAt = lastReplyFinishedAt
+        if (finishedAt != null && elapsedRealtime() - finishedAt >= historyIdleTimeoutMs) {
+            clearHistory()
+            onProgress("Contexto reiniciado após 5 minutos de inatividade.")
+        }
+        return try {
+            replyWithHistory(key, text, onProgress, onTrace, onUsage, onText)
+        } finally {
+            // Start the idle interval after completion, including failed/cancelled requests.
+            lastReplyFinishedAt = elapsedRealtime()
+        }
+    }
+
+    private fun replyWithHistory(key: String, text: String, onProgress: (String) -> Unit,
+        onTrace: (String, String) -> Unit, onUsage: (Long?) -> Unit,
+        onText: (String) -> Unit): String {
         val messages = JSONArray().put(JSONObject().put("role", "system").put("content", prompts.system))
         for (turn in recentTurns) {
             val previous = JSONArray(turn)
