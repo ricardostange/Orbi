@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="en"><head>
+<title>jsoup release 1.21.2 (2025-Aug-25)</title>
+<meta charset="UTF-8"/>
+<meta name="keywords" content="jsoup 1.21.2,jsoup release notes,Java HTML parser,HTML5 DOM parser Java,jsoup SSLContext,jsoup HTTP/2,jsoup performance improvements,jsoup bug fixes,jsoup DOM manipulation,jsoup parsing"/>
+<meta name="description" content="jsoup 1.21.2 adds custom SSLContext support, improves attribute handling, boosts DOM performance, and fixes edge case parsing bugs."/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="/rez/style@6ukw5h.css"/>
+<link rel="icon" href="/favicon@0nJgOf.ico"/>
+<script src="https://analytics.ahrefs.com/analytics.js" data-key="BNd+27/EeZUNI1YBDi5YUw" data-track-visibility="" async=""></script>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:site" content="@jhy"/>
+<meta name="twitter:title" content="jsoup release 1.21.2 (2025-Aug-25)"/>
+<meta property="og:title" content="jsoup release 1.21.2 (2025-Aug-25)"/>
+<meta name="twitter:description" content="jsoup 1.21.2 adds custom SSLContext support, improves attribute handling, boosts DOM performance, and fixes edge case parsing bugs."/>
+<meta name="twitter:image" content="https://jsoup.org/rez/jsoup-logo-social.png"/>
+<link rel="alternate" type="application/atom+xml" title="jsoup News (Atom feed)" href="/feed.xml"/>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"jsoup Java HTML Parser release 1.21.2","url":"https://jsoup.org/news/release-1.21.2","mainEntityOfPage":{"@type":"WebPage","@id":"https://jsoup.org/news/release-1.21.2"},"author":{"@type":"Person","name":"Jonathan Hedley"},"publisher":{"@type":"Organization","name":"jsoup","url":"https://jsoup.org/"},"description":"jsoup 1.21.2 adds custom SSLContext support, improves attribute handling, boosts DOM performance, and fixes edge case parsing bugs.","datePublished":"2025-08-25","dateModified":"2025-08-25","image":"https://jsoup.org/rez/jsoup-logo-social.png"}</script>
+<link rel="canonical" href="https://jsoup.org/news/release-1.21.2"/>
+<meta property="og:image" content="https://jsoup.org/rez/jsoup-logo-social@Dy5HqE.png"/>
+<meta property="og:description" content="jsoup 1.21.2 adds custom SSLContext support, improves attribute handling, boosts DOM performance, and fixes edge case parsing bugs."/>
+<meta property="og:url" content="https://jsoup.org/news/release-1.21.2"/>
+<meta property="og:type" content="article"/>
+</head>
+<body class="n1-news type-news">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="wrap">
+<header>
+<nav class="nav-sections" aria-label="Primary">
+<ul>
+<li class="n1-home"><a class="brand" href="/">jsoup</a>
+</li><li class="n1-news"><a aria-current="page" href="/news/">News</a>
+</li><li class="n1-bugs"><a href="/bugs">Bugs</a>
+</li><li class="n1-discussion"><a href="/discussion">Discussion</a>
+</li><li class="n1-download"><a href="/download">Download</a>
+</li><li class="n1-api"><a href="/apidocs/">API Reference</a>
+</li><li class="n1-cookbook"><a href="/cookbook/">Cookbook</a>
+</li><li class="n1-try"><a href="//try.jsoup.org/">Try jsoup</a>
+</li></ul>
+</nav>
+<nav class="breadcrumb" aria-label="Breadcrumb" itemscope="" itemtype="https://schema.org/BreadcrumbList">
+<span itemprop="itemListElement" itemscope="" itemtype="https://schema.org/ListItem">
+<a href="/" itemid="https://jsoup.org/" itemprop="item" itemscope="" itemtype="https://schema.org/WebPage">
+<span itemprop="name">jsoup</span>
+</a>
+<meta itemprop="position" content="1"/>
+</span>
+<span class="seperator">»</span>
+<span itemprop="itemListElement" itemscope="" itemtype="https://schema.org/ListItem">
+<a href="/news/" itemid="https://jsoup.org/news/" itemprop="item" itemscope="" itemtype="https://schema.org/WebPage">
+<span itemprop="name">News</span>
+</a>
+<meta itemprop="position" content="2"/>
+</span>
+<span class="seperator">»</span>
+<span itemprop="itemListElement" itemscope="" itemtype="https://schema.org/ListItem">
+<span itemprop="name">jsoup Java HTML Parser release 1.21.2</span>
+<meta itemprop="position" content="3"/>
+</span>
+</nav>
+</header>
+<main id="main-content">
+<div class="content content-single">
+<div class="body layout-reading layout-entry">
+<div class="entry-head"><h1 id="jsoup-java-html-parser-release-1212">jsoup Java HTML Parser release 1.21.2</h1><div class="meta pubdate"><time datetime="2025-08-25">Aug 25, 2025</time></div></div>
+<p><b>jsoup 1.21.2</b> is out now, adding support for custom <code>SSLContext</code> in HTTP/2 connections, and improving consistency in how user data is handled in attributes. It also brings performance gains in DOM manipulation and fragment parsing, and fixes several edge cases in stream parsing, traversal, cloning, and concurrent reads.
+</p><p><b>jsoup</b> is a Java library for working with real-world HTML and XML. It provides a very convenient API for extracting and manipulating data, using the best of HTML5 DOM methods and CSS selectors.
+</p><h2 id="changes">Changes</h2>
+<ul>
+<li>Deprecated internal (yet visible) methods <code>Normalizer#normalize(<wbr/>String, bool)</code> and <code>Attribute#shouldCollapseAttribute(<wbr/>Document.OutputSettings)</code>. These will be removed in a future version.
+</li><li>Deprecated <code>Connection#sslSocketFactory(<wbr/>SSLSocketFactory)</code> in favor of the new <code><a href="/apidocs/org/jsoup/Connection#sslContext(javax.net.ssl.SSLContext)" title="Set a custom SSL context for HTTPS connections.">Connection#sslContext(<wbr/>SSLContext)</a></code>. Using <code>sslSocketFactory</code> will force the use of the legacy <code>HttpUrlConnection</code> implementation, which does not support HTTP/2. <small><a href="https://github.com/jhy/jsoup/pull/2370">#2370</a></small>
+</li></ul>
+<h2 id="improvements">Improvements</h2>
+<ul>
+<li>When pretty-printing, if there are consecutive text nodes (via DOM manipulation), the non-significant whitespace between them will be collapsed. <small><a href="https://github.com/jhy/jsoup/pull/2349">#2349</a></small>.
+</li><li>Updated <code><a href="/apidocs/org/jsoup/Connection.Response#statusMessage()" title="Get the status message of the response.">Connection.Response#statusMessage(<wbr/>)</a></code> to return a simple loggable string message (e.g. “OK”) when using the <code>HttpClient</code> implementation, which doesn’t otherwise return any server-set status message. <small><a href="https://github.com/jhy/jsoup/issues/2346">#2356</a></small>
+</li><li><code><a href="/apidocs/org/jsoup/nodes/Attributes#size()" title="Get the number of attributes in this set, excluding any internal-only attributes (e.g. user data).">Attributes#size(<wbr/>)</a></code> and <code><a href="/apidocs/org/jsoup/nodes/Attributes#isEmpty()" title="Test if this Attributes list is empty.">Attributes#isEmpty(<wbr/>)</a></code> now exclude any internal attributes (such as user data) from their count. This aligns with the attributes’ serialized output and iterator. <small><a href="https://github.com/jhy/jsoup/pull/2369">#2369</a></small>
+</li><li>Added <code><a href="/apidocs/org/jsoup/Connection#sslContext(javax.net.ssl.SSLContext)" title="Set a custom SSL context for HTTPS connections.">Connection#sslContext(<wbr/>SSLContext)</a></code> to provide a custom SSL (TLS) context to requests, supporting both the <code>HttpClient</code> and the legacy <code>HttUrlConnection</code> implementations. <small><a href="https://github.com/jhy/jsoup/pull/2370">#2370</a></small>
+</li><li>Performance optimizations for DOM manipulation methods including when repeatedly removing an element’s first child (<code>element.child(<wbr/>0).remove()</code>), and when using <code>Parser#parseBodyFragement(<wbr/>)</code> to parse a large number of direct children. <small><a href="https://github.com/jhy/jsoup/pull/2373">#2373</a></small>.
+</li></ul>
+<h2 id="bug-fixes">Bug Fixes</h2>
+<ul>
+<li>When parsing from an InputStream and a multibyte character happened to straddle a buffer boundary, the stream would not be completely read. <small><a href="https://github.com/jhy/jsoup/issues/2353">#2353</a></small>.
+</li><li>In <code><a href="/apidocs/org/jsoup/select/NodeTraversor" title="A depth-first node traversor.">NodeTraversor</a></code>, if a last child element was removed during the <code><a href="/apidocs/org/jsoup/nodes/Document#head()" title="Get this document&#39;s head element.">head(<wbr/>)</a></code> call, the parent would be visited twice. <small><a href="https://github.com/jhy/jsoup/issues/2355">#2355</a></small>.
+</li><li>Cloning an Element that has an Attributes object would add an empty internal user-data attribute to that clone, which would cause unexpected results for <code><a href="/apidocs/org/jsoup/nodes/Attributes#size()" title="Get the number of attributes in this set, excluding any internal-only attributes (e.g. user data).">Attributes#size(<wbr/>)</a></code> and <code><a href="/apidocs/org/jsoup/nodes/Attributes#isEmpty()" title="Test if this Attributes list is empty.">Attributes#isEmpty(<wbr/>)</a></code>. <small><a href="https://github.com/jhy/jsoup/issues/2356">#2356</a></small>
+</li><li>In a multithreaded application where multiple threads are calling <code><a href="/apidocs/org/jsoup/nodes/Element#children()" title="Get this element&#39;s child elements.">Element#children(<wbr/>)</a></code> on the same element concurrently, a race condition could happen when the method was generating the internal child element cache (a filtered view of its child nodes). Since concurrent reads of DOM objects should be threadsafe without external synchronization, this method has been updated to execute atomically. <small><a href="https://github.com/jhy/jsoup/issues/2366">#2366</a></small>
+</li><li>When parsing HTML with <code>svg:script</code> elements in SVG elements, don’t enter the Text insertion mode, but continue to parse as foreign content. Otherwise, misnested HTML could then cause an <code>IndexOutOfBoundsException</code>. <small><a href="https://github.com/jhy/jsoup/issues/2374">#2374</a></small>
+</li><li>Malformed HTML could throw an IndexOutOfBoundsException during the adoption agency. <small><a href="https://github.com/jhy/jsoup/pull/2377">#2377</a></small>
+</li></ul>
+<hr/>
+<p>My sincere thanks to everyone who contributed to this release!
+If you have any suggestions for the next release, I would love to hear them; please get in touch via <a href="https://github.com/jhy/jsoup/discussions">jsoup discussions</a>, or with me <a href="https://jhedley.com/">directly</a>.
+</p><p>You can also <a href="https://tilde.zone/@jhy" rel="me">follow me</a> (<b><a href="https://tilde.zone/@jhy" rel="me">@jhy@tilde.zone</a></b>) on Mastodon / Fediverse to receive occasional notes about jsoup releases.
+</p><p><a href="/download"><i>Download</i></a> jsoup now.
+</p></div>
+</div>
+</main>
+<footer>
+<b>jsoup HTML parser</b> © 2009 - 2026 <a href="//jhedley.com" rel="author"><b>Jonathan Hedley</b></a>
+</footer>
+</div>
+</body></html>
