@@ -67,10 +67,7 @@ fun LogScreen(model: ChatModel, modifier: Modifier = Modifier) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(date.format(Date(event.time)) + " · " + event.title, style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary)
-                            val detail = remember(event.detail) {
-                                runCatching { org.json.JSONObject(event.detail).toString(2) }.getOrDefault(event.detail)
-                            }
-                            SelectionContainer { Text(detail, style = MaterialTheme.typography.bodySmall) }
+                            LogEventDetail(event)
                             HorizontalDivider()
                         }
                     }
@@ -83,4 +80,40 @@ fun LogScreen(model: ChatModel, modifier: Modifier = Modifier) {
         text = { Text("Os comandos registrados serão removidos deste aparelho.") },
         confirmButton = { TextButton(enabled = !model.busy, onClick = { model.clearLogs(); selected = null; confirmClear = false }) { Text("Limpar") } },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancelar") } })
+}
+
+@Composable
+private fun LogEventDetail(event: br.com.assistente.teste.logs.LogEvent) {
+    var expanded by remember(event) { mutableStateOf(setOf<String>()) }
+    val (detail, tags) = remember(event, expanded) {
+        val json = runCatching { org.json.JSONObject(event.detail) }.getOrNull()
+        val tags = mutableListOf<Pair<String, String>>()
+        if (json != null && event.title.startsWith("Envio à IA ·")) {
+            val prompt = json.optJSONArray("messages")?.optJSONObject(0)
+            if (prompt?.optString("role") == "system") {
+                val tag = "<main prompt>"
+                tags.add("prompt" to tag)
+                if ("prompt" !in expanded) prompt.put("content", tag)
+            }
+            val tools = json.optJSONArray("tools")
+            if (tools != null) {
+                for (i in 0 until tools.length()) {
+                    val name = tools.optJSONObject(i)?.optJSONObject("function")?.optString("name").orEmpty()
+                    if (name.isBlank()) continue
+                    val key = "tool-$i"
+                    val tag = "<tool $name>"
+                    tags.add(key to tag)
+                    if (key !in expanded) tools.put(i, tag)
+                }
+            }
+        }
+        (json?.toString(2) ?: event.detail) to tags
+    }
+    tags.forEach { (key, tag) ->
+        TextButton(onClick = { expanded = if (key in expanded) expanded - key else expanded + key },
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+            Text(tag, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+    SelectionContainer { Text(detail, style = MaterialTheme.typography.bodySmall) }
 }

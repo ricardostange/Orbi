@@ -15,6 +15,40 @@ do limite dos eventos. Logs antigos mostram “—”; processos encerrados abru
 recebem uma duração inventada. Durante execução, tokens representam o consumo recebido
 até aquele momento e o tempo aparece como “em andamento”.
 
+## Streaming e latência
+
+O cliente pede `stream: true` e `stream_options.include_usage: true`. `ChatStreamReader`
+interpreta SSE e monta a resposta por `tool_calls[index]`, concatenando os argumentos.
+Texto chega à tela em atualizações limitadas a aproximadamente 20 por segundo, com
+atualização final garantida. Uma nova etapa limpa o texto provisório anterior.
+Ferramentas só são entregues ao agente depois de `[DONE]`, `finish_reason=tool_calls`
+e validação de todos os IDs e argumentos JSON do lote. Streams interrompidos,
+truncados ou inválidos não executam as ferramentas daquela resposta. Não há retry
+HTTP automático. Resultados JSON completos continuam aceitos quando o servidor
+ignora streaming; provedores que recusam a opção retornam erro, sem reenvio silencioso.
+
+O diagnóstico de cada chamada registra tempo até o primeiro conteúdo (texto ou
+fragmento de ferramenta) e tempo total, usando relógio monotônico. Eventos de papel,
+keepalive e usage não contam como primeiro conteúdo. Em respostas JSON completas,
+o primeiro conteúdo só é observado após receber o corpo. A latência inclui rede e
+espera no provedor: não é uma medida isolada do processamento do prompt.
+
+Tokens vêm exclusivamente de `usage`, inclusive quando a geração termina truncada.
+O cliente aceita usage no último chunk de conteúdo ou num chunk separado sem choices.
+Cache hit/miss são exibidos quando informados; `prompt_tokens_details.cached_tokens`
+também é reconhecido. Esses valores são detalhamentos da entrada, não tokens adicionais.
+Ausência de usage é registrada como desconhecida, inclusive em streams interrompidos.
+O cabeçalho do Log continua mostrando apenas tokens totais e duração do comando.
+
+O system prompt não muda com o contador de turnos omitidos. Ferramentas conectadas
+continuam determinando as instruções de disponibilidade. Na tela do Log, prompts e
+schemas ficam recolhidos como `<main prompt>` e `<tool nome>`, expansíveis individualmente.
+Essa apresentação não altera o payload enviado à LLM, os dados salvos ou a cópia do log.
+Eventos cujo JSON já foi abreviado são exibidos como texto original.
+
+Testes: `ChatStreamTest`, `ChatClientTest`, `LlmUsageTest` e `LlmConfigurationTest`.
+Referência de protocolo: https://api-docs.deepseek.com/api/create-chat-completion/
+
 ## Onde alterar
 
 | Responsabilidade | Arquivo |
@@ -46,7 +80,9 @@ A chave continua na mesma entrada criptografada de `ApiKeyStore`, usando Android
 
 ## Teste manual isolado (Python 3, sem dependências)
 
-Inspecionar a requisição exata, sem internet e sem chave:
+Inspecionar os prompts e schemas sem internet e sem chave. O probe usa resposta JSON
+completa (`stream: false`); o app usa SSE. Para testar o protocolo de streaming, use
+`ChatStreamTest`:
 
 ```bash
 python3 scripts/llm_probe.py --message 'Olá'
@@ -118,7 +154,7 @@ Testes: `CommandLogsTest` cobre retenção/ordem, reabertura, interrupção, lim
 
 ## Eficiência e correção do ciclo genérico
 
-- Histórico: até cinco turnos completos e 16.000 caracteres serializados. Evicção do mais antigo, sem separar chamadas de seus resultados nem truncar IDs/JSON. O prompt informa quando turnos foram omitidos; referências ausentes exigem esclarecimento. O turno atual e resultados atuais permanecem integrais.
+- Histórico: até cinco turnos completos e 16.000 caracteres serializados. Evicção do mais antigo, sem separar chamadas de seus resultados nem truncar IDs/JSON. O prompt fixo avisa que o histórico pode omitir turnos; o contador exato fica apenas no diagnóstico; referências ausentes exigem esclarecimento. O turno atual e resultados atuais permanecem integrais.
 - A seleção é uma janela por recência e orçamento, não um classificador semântico. Não há chamada extra de resumo nem filtro de ferramentas por palavras-chave que possa esconder capacidades relevantes.
 - Validação estrutural do lote antes de efeitos: IDs não vazios/únicos no pedido e envelopes de função válidos. Argumentos são validados pelo schema anunciado (tipo, enum, obrigatórios, campos adicionais, limites numéricos e arrays), além das validações de domínio.
 - Falhas do modelo após um lote de ferramentas preservam chamadas e resultados no histórico com indicação de interrupção. Não há repetição automática de ações.

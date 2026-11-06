@@ -153,7 +153,8 @@ class ChatClientTest {
             client.reply("key", "Pedido $it")
         }
         val messages = requests.last()
-        assertTrue(messages.getJSONObject(0).getString("content").contains("omitidos"))
+        assertTrue(messages.getJSONObject(0).getString("content").contains("pode omitir"))
+        assertEquals(requests.first().getJSONObject(0).getString("content"), messages.getJSONObject(0).getString("content"))
         assertEquals("Pedido 1", messages.getJSONObject(1).getString("content"))
         assertTrue(events.none { it.contains("private-key") })
     }
