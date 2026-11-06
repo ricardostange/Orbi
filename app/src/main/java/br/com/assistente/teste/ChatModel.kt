@@ -9,6 +9,7 @@ import br.com.assistente.teste.llm.*
 import br.com.assistente.teste.lists.ListsRepository
 import br.com.assistente.teste.lists.ListsIntegration
 import br.com.assistente.teste.integrations.android.AndroidSpotifyIntegration
+import br.com.assistente.teste.integrations.web.WebSearchIntegration
 import kotlinx.coroutines.runBlocking
 import br.com.assistente.teste.integrations.IntegrationRegistry
 import br.com.assistente.teste.integrations.spotify.SpotifyAuth
@@ -57,7 +58,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     var listsReady by mutableStateOf(false); private set
     var listsBusy by mutableStateOf(false); private set
     var listsError by mutableStateOf<String?>(null); private set
-    private val integrations = IntegrationRegistry(listOf(spotify, android, ListsIntegration(listsRepository)))
+    private val integrations = IntegrationRegistry(listOf(spotify, android, ListsIntegration(listsRepository), WebSearchIntegration()))
     fun dismissListsError() { listsError = null }
     fun loadLists() = listAction({ listsReady = true }) { listsRepository.load() }
     fun createList(name: String, done: () -> Unit) = listAction(done) { listsRepository.createList(name) }
