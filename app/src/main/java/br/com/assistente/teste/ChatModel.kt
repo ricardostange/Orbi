@@ -2,6 +2,7 @@ package br.com.assistente.teste
 
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
 import androidx.compose.runtime.*
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -86,7 +87,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     var llmConfig by mutableStateOf(agentSettings.load()); private set
     private var chat = createChat()
     private fun createChat() = ChatClient(OpenAiCompatibleClient(client, llmConfig), integrations, agentSettings.prompts(),
-        elapsedRealtime = { android.os.SystemClock.elapsedRealtime() })
+        elapsedRealtime = { SystemClock.elapsedRealtime() })
     fun configureLlm(config: LlmConfig) {
         check(!busy) { "Aguarde o pedido atual terminar." }
         agentSettings.save(config)
