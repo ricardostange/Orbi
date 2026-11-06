@@ -120,6 +120,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
         diagnostics = ""
         task {
             val result = withContext(Dispatchers.IO) {
+                val requestContext = kotlinx.coroutines.currentCoroutineContext()
                 val key = keys.read()
                 val secrets = listOfNotNull(key)
                 val id = commandLogs.begin(text, secrets)
@@ -130,7 +131,13 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                             commandLogs.event(id, "Diagnóstico", event, secrets)
                             viewModelScope.launch { appendDiagnostic(event) }
                         }, onTrace = { title, detail -> commandLogs.event(id, title, detail, secrets) },
-                        onUsage = { tokens -> commandLogs.usage(id, tokens) })
+                        onUsage = { tokens -> commandLogs.usage(id, tokens) },
+                        onText = { partial ->
+                            // Apply in order on the UI dispatcher; no detached updates after completion.
+                            kotlinx.coroutines.runBlocking(requestContext + Dispatchers.Main.immediate) {
+                                answer = partial.ifEmpty { "Consultando ${llmConfig.provider}…" }
+                            }
+                        })
                     commandLogs.event(id, "Resposta final", reply, secrets)
                     commandLogs.finish(id, "Processado")
                     reply

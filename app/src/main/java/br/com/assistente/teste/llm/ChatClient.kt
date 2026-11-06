@@ -29,7 +29,8 @@ class ChatClient(
     }
 
     fun reply(key: String, text: String, onProgress: (String) -> Unit = {},
-        onTrace: (String, String) -> Unit = { _, _ -> }, onUsage: (Long?) -> Unit = {}): String {
+        onTrace: (String, String) -> Unit = { _, _ -> }, onUsage: (Long?) -> Unit = {},
+        onText: (String) -> Unit = {}): String {
         val messages = JSONArray().put(JSONObject().put("role", "system").put("content", prompts.system))
         for (turn in recentTurns) {
             val previous = JSONArray(turn)
@@ -41,11 +42,6 @@ class ChatClient(
         val toolNames = (0 until tools.length()).map { tools.getJSONObject(it).getJSONObject("function").getString("name") }
         val availability = prompts.availability(toolNames)
         messages.getJSONObject(0).put("content", messages.getJSONObject(0).getString("content") + " " + availability)
-        if (omittedTurns > 0) {
-            val system = messages.getJSONObject(0)
-            system.put("content", system.getString("content") +
-                "\nContexto limitado: $omittedTurns turnos anteriores foram omitidos por orçamento. Se uma referência depender deles, peça esclarecimento; não invente o conteúdo.")
-        }
         onProgress("Contexto: ${recentTurns.size} turnos anteriores; ${recentTurns.sumOf { it.length }} caracteres; $omittedTurns omitidos.")
         onProgress("Ferramentas disponíveis: ${toolNames.joinToString().ifBlank { "nenhuma (conecte o Spotify em Integrações)" }}")
         var repairedTextCall = false
@@ -54,13 +50,14 @@ class ChatClient(
         repeat(12) { step ->
             onProgress("LLM: solicitação ${step + 1}; mensagens=${messages.toString().length} caracteres; schemas=${tools.toString().length} caracteres")
             onTrace("Envio à IA · etapa ${step + 1}", JSONObject().put("messages", messages).put("tools", tools).toString())
+            onText("")
             val started = System.nanoTime()
             var usageReported = false
             val message = try {
-                gateway.completeWithUsage(key, messages, tools, onProgress) { tokens ->
+                gateway.stream(key, messages, tools, onProgress, { tokens ->
                     usageReported = true
                     onUsage(tokens)
-                }
+                }, onText)
             } catch (e: Exception) {
                 // A model/network failure after dispatch must not erase already executed actions.
                 if (calls > 0 && messages.getJSONObject(messages.length() - 1).optString("role") == "tool") {
@@ -100,6 +97,7 @@ class ChatClient(
                 })
                 return content
             }
+            onText("")
             check(calls + toolCalls.length() <= 40) { "Limite de ações por pedido atingido. Algumas ações podem ter sido executadas; consulte o estado atual das listas e do Spotify antes de repetir." }
             // Validate the entire envelope before allowing any side effect in this batch.
             val ids = (0 until toolCalls.length()).map { index ->
