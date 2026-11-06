@@ -34,3 +34,9 @@ Abra **Menu → Listas** para criar suas listas e adicionar, marcar ou remover i
 Menu → **Log** exibe os últimos 50 pedidos, salvos no aparelho. Abra um comando para acompanhar as mensagens enviadas/recebidas pela IA, ferramentas, argumentos, resultados e erros. Cada registro pode ser selecionado ou copiado. Chaves e tokens são ocultados; revise os dados pessoais antes de compartilhar.
 
 O campo de texto só aparece ao tocar no teclado. É possível enviar pelo botão Enviar ou pela ação do teclado; rascunhos são preservados ao cancelar e durante rotação. Mensagens digitadas usam o mesmo agente, ferramentas e Log dos pedidos por voz.
+
+## Busca web
+
+O Orbi pode pesquisar na internet com `web_search`, sem chave adicional. Retorna até
+cinco títulos, links e trechos via DuckDuckGo Lite. Consulte [WEB_SEARCH.md](docs/WEB_SEARCH.md)
+para arquitetura, limites e testes.
