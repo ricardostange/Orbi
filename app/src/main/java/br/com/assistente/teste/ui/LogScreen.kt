@@ -43,6 +43,8 @@ fun LogScreen(model: ChatModel, modifier: Modifier = Modifier) {
                         color = if (entry.status == "Erro") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                     SelectionContainer { Text(entry.command, style = MaterialTheme.typography.titleMedium,
                         maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    Text(entry.metrics(), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("${entry.events.size} etapas registradas", style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(onClick = { selected = entry.id }) { Text("Ver etapas") }
@@ -57,6 +59,8 @@ fun LogScreen(model: ChatModel, modifier: Modifier = Modifier) {
             title = { Text("Etapas do comando") },
             text = {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 500.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    item { Text(entry.metrics(), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     item { SelectionContainer { Text(entry.command, style = MaterialTheme.typography.titleMedium) } }
                     item { Text(entry.status, color = MaterialTheme.colorScheme.primary) }
                     items(entry.events) { event ->

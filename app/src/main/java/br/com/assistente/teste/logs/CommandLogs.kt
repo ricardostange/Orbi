@@ -11,9 +11,23 @@ import java.util.UUID
 
 data class LogEvent(val time: Long, val title: String, val detail: String)
 data class CommandLog(val id: String, val time: Long, val command: String, val status: String,
-    val events: List<LogEvent> = emptyList()) {
+    val events: List<LogEvent> = emptyList(), val totalTokens: Long? = null,
+    val tokensComplete: Boolean = false, val durationMs: Long? = null) {
+    fun metrics(): String {
+        val locale = java.util.Locale.forLanguageTag("pt-BR")
+        val tokens = when {
+            totalTokens == null -> "—"
+            !tokensComplete && totalTokens == 0L -> "não informado"
+            else -> java.text.NumberFormat.getIntegerInstance(locale).format(totalTokens) +
+                if (tokensComplete) "" else " (parcial)"
+        }
+        val time = durationMs?.let { String.format(locale, "%.1f s", it / 1000.0) }
+            ?: if (status == "Em andamento") "em andamento" else "—"
+        return "Tokens: $tokens · Tempo: $time"
+    }
     fun report(): String = buildString {
         appendLine("Comando: $command\nEstado: $status")
+        appendLine(metrics())
         events.forEach { appendLine("\n${java.util.Date(it.time)} · ${it.title}\n${it.detail}") }
     }
 }
@@ -48,13 +62,14 @@ object LogSanitizer {
 }
 
 /** Private bounded history; disk errors never stop an assistant command. Call on IO. */
-class CommandLogs(context: Context) {
+class CommandLogs(context: Context, private val monotonicMillis: () -> Long = { System.nanoTime() / 1_000_000 }) {
     private val file = AtomicFile(File(context.filesDir, "command-log.json"))
     private val state = MutableStateFlow<List<CommandLog>>(emptyList())
     val entries = state.asStateFlow()
     private val errors = MutableStateFlow<String?>(null)
     val error = errors.asStateFlow()
     private var loaded = false
+    private val started = mutableMapOf<String, Long>()
 
     @Synchronized fun load() {
         if (loaded) return
@@ -69,7 +84,10 @@ class CommandLogs(context: Context) {
                     row.getString("status").let { if (it == "Em andamento") "Interrompido" else it },
                     (0 until events.length()).map { j -> events.getJSONObject(j).let {
                         LogEvent(it.getLong("time"), it.getString("title"), it.getString("detail"))
-                    } })
+                    } },
+                    if (row.has("totalTokens") && !row.isNull("totalTokens")) row.getLong("totalTokens") else null,
+                    row.optBoolean("tokensComplete", false) && row.getString("status") != "Em andamento",
+                    if (row.has("durationMs") && !row.isNull("durationMs")) row.getLong("durationMs") else null)
             }
         } catch (_: java.io.FileNotFoundException) { /* First launch. */ }
         catch (_: Exception) { errors.value = "Não foi possível ler o histórico salvo." }
@@ -77,7 +95,8 @@ class CommandLogs(context: Context) {
     @Synchronized fun begin(command: String, secrets: List<String>): String {
         load()
         val entry = CommandLog(UUID.randomUUID().toString(), System.currentTimeMillis(),
-            LogSanitizer.clean(command, secrets).take(4000), "Em andamento")
+            LogSanitizer.clean(command, secrets).take(4000), "Em andamento", totalTokens = 0, tokensComplete = true)
+        started[entry.id] = monotonicMillis()
         state.value = (listOf(entry) + state.value).take(50)
         save()
         return entry.id
@@ -103,16 +122,25 @@ class CommandLogs(context: Context) {
         }
         save()
     }
-    @Synchronized fun finish(id: String, status: String) {
-        state.value = state.value.map { if (it.id == id) it.copy(status = status) else it }
+    @Synchronized fun usage(id: String, tokens: Long?) {
+        state.value = state.value.map { if (it.id != id) it else it.copy(
+            totalTokens = (it.totalTokens ?: 0) + (tokens ?: 0),
+            tokensComplete = it.tokensComplete && tokens != null) }
         save()
     }
-    @Synchronized fun clear() { load(); state.value = emptyList(); save() }
+    @Synchronized fun finish(id: String, status: String) {
+        val elapsed = started.remove(id)?.let { (monotonicMillis() - it).coerceAtLeast(0) }
+        state.value = state.value.map { if (it.id == id) it.copy(status = status, durationMs = elapsed ?: it.durationMs) else it }
+        save()
+    }
+    @Synchronized fun clear() { load(); state.value = emptyList(); started.clear(); save() }
     private fun save() {
         var stream: java.io.FileOutputStream? = null
         try {
             val data = JSONArray().apply { state.value.forEach { row -> put(JSONObject()
                 .put("id", row.id).put("time", row.time).put("command", row.command).put("status", row.status)
+                .put("totalTokens", row.totalTokens ?: JSONObject.NULL).put("tokensComplete", row.tokensComplete)
+                .put("durationMs", row.durationMs ?: JSONObject.NULL)
                 .put("events", JSONArray().apply { row.events.forEach { put(JSONObject()
                     .put("time", it.time).put("title", it.title).put("detail", it.detail)) } })) } }.toString()
             stream = file.startWrite()

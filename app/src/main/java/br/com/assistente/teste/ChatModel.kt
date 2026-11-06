@@ -129,7 +129,8 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                         onProgress = { event ->
                             commandLogs.event(id, "Diagnóstico", event, secrets)
                             viewModelScope.launch { appendDiagnostic(event) }
-                        }, onTrace = { title, detail -> commandLogs.event(id, title, detail, secrets) })
+                        }, onTrace = { title, detail -> commandLogs.event(id, title, detail, secrets) },
+                        onUsage = { tokens -> commandLogs.usage(id, tokens) })
                     commandLogs.event(id, "Resposta final", reply, secrets)
                     commandLogs.finish(id, "Processado")
                     reply
