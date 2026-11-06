@@ -1,5 +1,20 @@
 # Agente e integração com LLMs
 
+## Totais no Log (0.9.1)
+
+Cada comando mostra uma linha discreta com tokens e tempo, também no topo das etapas e
+no texto copiado. Tokens somam o `usage.total_tokens` de todas as respostas da LLM;
+quando ausente, usa `prompt_tokens + completion_tokens` apenas se ambos forem informados.
+Inclui respostas truncadas e as chamadas intermediárias de ferramentas. Detalhes de cache
+ou raciocínio não são somados de novo. Não estima por caracteres nem por `max_tokens`.
+Etapas sem uso informado ou sem resposta deixam o valor parcial/não informado.
+
+O tempo é a duração total do comando, incluindo LLMs e ferramentas, medida por relógio
+monotônico até sucesso, erro ou cancelamento. Os totais são persistidos independentemente
+do limite dos eventos. Logs antigos mostram “—”; processos encerrados abruptamente não
+recebem uma duração inventada. Durante execução, tokens representam o consumo recebido
+até aquele momento e o tempo aparece como “em andamento”.
+
 ## Onde alterar
 
 | Responsabilidade | Arquivo |

@@ -29,7 +29,7 @@ class ChatClient(
     }
 
     fun reply(key: String, text: String, onProgress: (String) -> Unit = {},
-        onTrace: (String, String) -> Unit = { _, _ -> }): String {
+        onTrace: (String, String) -> Unit = { _, _ -> }, onUsage: (Long?) -> Unit = {}): String {
         val messages = JSONArray().put(JSONObject().put("role", "system").put("content", prompts.system))
         for (turn in recentTurns) {
             val previous = JSONArray(turn)
@@ -55,8 +55,12 @@ class ChatClient(
             onProgress("LLM: solicitação ${step + 1}; mensagens=${messages.toString().length} caracteres; schemas=${tools.toString().length} caracteres")
             onTrace("Envio à IA · etapa ${step + 1}", JSONObject().put("messages", messages).put("tools", tools).toString())
             val started = System.nanoTime()
+            var usageReported = false
             val message = try {
-                gateway.complete(key, messages, tools, onProgress)
+                gateway.completeWithUsage(key, messages, tools, onProgress) { tokens ->
+                    usageReported = true
+                    onUsage(tokens)
+                }
             } catch (e: Exception) {
                 // A model/network failure after dispatch must not erase already executed actions.
                 if (calls > 0 && messages.getJSONObject(messages.length() - 1).optString("role") == "tool") {
@@ -70,6 +74,8 @@ class ChatClient(
                     remember(interrupted)
                 }
                 throw e
+            } finally {
+                if (!usageReported) onUsage(null)
             }
             onTrace("Resposta da IA · etapa ${step + 1} · ${(System.nanoTime() - started) / 1_000_000} ms", message.toString())
             val toolCalls = message.optJSONArray("tool_calls")

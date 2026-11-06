@@ -64,4 +64,45 @@ class CommandLogsTest {
         assertTrue(entry.report().length < 150_000)
         assertTrue(entry.report().contains("abreviado"))
     }
+
+    @Test fun `totals and monotonic duration persist independently of clipped traces`() {
+        var clock = 1000L
+        val logs = CommandLogs(context) { clock }
+        val id = logs.begin("Busca", emptyList())
+        logs.usage(id, 1200)
+        repeat(9) { logs.event(id, "Etapa", "x".repeat(20_000), emptyList()) }
+        logs.usage(id, 450)
+        clock = 3456
+        logs.finish(id, "Processado")
+        clock = 9999
+        logs.finish(id, "Processado")
+        val row = CommandLogs(context).also { it.load() }.entries.value.single()
+        assertEquals(1650L, row.totalTokens)
+        assertTrue(row.tokensComplete)
+        assertEquals(2456L, row.durationMs)
+        assertTrue(row.metrics().contains("1.650"))
+        assertTrue(row.metrics().contains("2,5 s"))
+        assertTrue(row.report().contains(row.metrics()))
+    }
+
+    @Test fun `missing usage is partial and interrupted duration is never invented`() {
+        val logs = CommandLogs(context)
+        val id = logs.begin("Teste", emptyList())
+        logs.usage(id, 100)
+        logs.usage(id, null)
+        assertTrue(logs.entries.value.single().metrics().contains("100 (parcial)"))
+        val row = CommandLogs(context).also { it.load() }.entries.value.single()
+        assertFalse(row.tokensComplete)
+        assertNull(row.durationMs)
+        assertEquals("Interrompido", row.status)
+    }
+
+    @Test fun `legacy records show unavailable metrics and still load`() {
+        java.io.File(context.filesDir, "command-log.json").writeText(
+            """[{"id":"old","time":123,"command":"Antigo","status":"Processado","events":[]}]""")
+        val row = CommandLogs(context).also { it.load() }.entries.value.single()
+        assertNull(row.totalTokens)
+        assertNull(row.durationMs)
+        assertEquals("Tokens: — · Tempo: —", row.metrics())
+    }
 }
