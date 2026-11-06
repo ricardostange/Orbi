@@ -40,3 +40,6 @@ O campo de texto só aparece ao tocar no teclado. É possível enviar pelo botã
 O Orbi pode pesquisar na internet com `web_search`, sem chave adicional. Retorna até
 cinco títulos, links e trechos via DuckDuckGo Lite. Consulte [WEB_SEARCH.md](docs/WEB_SEARCH.md)
 para arquitetura, limites e testes.
+
+`read_page(url)` abre os links encontrados e extrai o texto principal com Readability,
+com continuação para páginas longas. Veja [READ_PAGE.md](docs/READ_PAGE.md).

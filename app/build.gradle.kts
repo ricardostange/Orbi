@@ -7,7 +7,7 @@ android {
         minSdk = 23
         targetSdk = 34
         versionCode = System.getenv("VERSION_CODE")?.toInt() ?: 2000
-        versionName = "0.8.0"
+        versionName = "0.9.0"
     }
     signingConfigs {
         create("original") {
@@ -37,6 +37,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jsoup:jsoup:1.24.1")
+    implementation("net.dankito.readability4j:readability4j:1.0.8")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("junit:junit:4.13.2")
