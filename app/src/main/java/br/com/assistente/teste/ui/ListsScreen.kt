@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextDecoration
 import br.com.assistente.teste.ChatModel
 
 @Composable
@@ -83,8 +84,12 @@ fun ListsScreen(model: ChatModel, modifier: Modifier = Modifier) {
             if (selected.items.isEmpty()) Text("Esta lista está vazia. Adicione seu primeiro item.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             LazyColumn(Modifier.weight(1f)) {
                 items(selected.items, key = { it.id }) { item ->
-                    ListItem(headlineContent = { Text(item.text) },
-                        supportingContent = if (item.completed) { { Text("Concluído") } } else null,
+                    ListItem(headlineContent = {
+                        Text(item.text,
+                            textDecoration = if (item.completed) TextDecoration.LineThrough else TextDecoration.None,
+                            color = if (item.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                else MaterialTheme.colorScheme.onSurface)
+                    },
                         leadingContent = {
                             Checkbox(checked = item.completed, enabled = !model.listsBusy,
                                 onCheckedChange = { model.completeListItem(selected.id, item.id, it) },

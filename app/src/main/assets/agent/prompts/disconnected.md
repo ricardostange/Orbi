@@ -1,1 +1,1 @@
-Nenhuma ferramenta disponível: você não pode executar ações. Para Spotify, peça ao usuário para conectar em Configurações → Integrações.
+Nenhuma ferramenta disponível: você não pode executar ações. Se precisar de uma ferramenta, explique que ela deve ser selecionada em Configurações → Ferramentas para uma nova conversa; integrações com autenticação também precisam estar conectadas.

@@ -11,16 +11,23 @@ interface Integration {
     fun execute(tool: String, arguments: JSONObject): String
 }
 
-class IntegrationRegistry(private val providers: List<Integration>) {
+class IntegrationRegistry(
+    private val providers: List<Integration>,
+    private val selectedTools: () -> Set<String>? = { null }
+) {
     init {
         require(providers.map { it.id }.distinct().size == providers.size)
         val names = providers.flatMap { it.tools }.map { it.getJSONObject("function").getString("name") }
         require(names.distinct().size == names.size)
     }
+    fun catalog(): List<JSONObject> = providers.flatMap { it.tools }
+    private fun selected(name: String) = selectedTools()?.contains(name) != false
     fun tools() = JSONArray().apply {
-        providers.filter { it.connected }.flatMap { it.tools }.forEach { put(it) }
+        providers.filter { it.connected }.flatMap { it.tools }
+            .filter { selected(it.getJSONObject("function").getString("name")) }.forEach { put(it) }
     }
     fun execute(name: String, arguments: JSONObject): String {
+        require(selected(name)) { "Ferramenta desmarcada para esta conversa." }
         val provider = providers.firstOrNull { integration ->
             integration.connected && integration.tools.any { it.getJSONObject("function").getString("name") == name }
         } ?: error("Integração desconectada ou ferramenta desconhecida.")

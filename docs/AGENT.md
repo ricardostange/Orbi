@@ -66,7 +66,7 @@ Referência de protocolo: https://api-docs.deepseek.com/api/create-chat-completi
 Os caminhos Kotlin são relativos a `app/src/main/java/br/com/assistente/teste/`.
 Os Markdown são carregados pelo aplicativo, não apenas documentação. Edite-os e gere um novo APK; não é necessário alterar Kotlin para mudar instruções. O prompt Spotify só é anexado quando a ferramenta está conectada.
 
-O contrato `LlmGateway` separa transporte e agente. A UI conhece `ChatModel`, não requisições HTTP. Os esquemas JSON, allowlist de ações, validações de IDs/intervalos, autenticação, tratamento de respostas, limites de 12 etapas/40 ações e histórico de até 5 turnos permanecem em código: instruções em linguagem natural não substituem esses controles.
+O contrato `LlmGateway` separa transporte e agente. A UI conhece `ChatModel`, não requisições HTTP. Os esquemas JSON, allowlist de ações, validações de IDs/intervalos, autenticação, tratamento de respostas, limites de 12 etapas/40 ações permanecem em código: instruções em linguagem natural não substituem esses controles.
 
 ## Configurar no celular
 
@@ -74,7 +74,7 @@ Menu → Configurações → Configurar API e modelo. Cole a chave; as opções 
 
 O provedor precisa oferecer `chat/completions` e chamadas estruturadas `tool_calls`. Mudar o nome exibido não adapta protocolos diferentes. Ao trocar de provedor, use o endpoint/modelo dele e remova parâmetros exclusivos do DeepSeek (`extra_body.thinking`), usando `{}` se necessário. A UI exige uma nova chave ao trocar o endpoint para evitar enviar a chave anterior a outro serviço.
 
-Trocar a configuração reinicia o contexto interno do agente; navegar entre telas não reinicia a conversa. A última pergunta/resposta permanece visível. A conversa fica em memória e sobrevive à rotação via ViewModel, mas não ao encerramento do processo. O contexto do agente não é restaurado; a aba Log conserva os últimos 50 comandos para depuração.
+Trocar a configuração reinicia o contexto interno do agente; navegar entre telas não reinicia a conversa. O histórico visível também é reiniciado. A conversa fica em memória e sobrevive à rotação via ViewModel, mas não ao encerramento do processo. O contexto do agente não é restaurado; a aba Log conserva os últimos 50 comandos para depuração.
 
 A chave continua na mesma entrada criptografada de `ApiKeyStore`, usando Android Keystore. Tokens Spotify e o Client ID previamente configurados também são preservados. Não coloque credenciais em JSON, Markdown, exemplos ou Git. O aplicativo não registra cabeçalhos de autorização nem corpos HTTP em diagnóstico. Relatórios de diagnóstico incluem pergunta, resposta e informações consultadas: revise antes de compartilhar.
 
@@ -144,7 +144,7 @@ O registro inclui `ListsIntegration` permanentemente, sem depender do Spotify. U
 
 ## Log de comandos (0.7)
 
-Menu → Log mantém os últimos **50 pedidos ao assistente**, do mais recente ao mais antigo, no armazenamento privado do aparelho (`command-log.json`, escrita atômica, sem backup Android). O histórico é separado dos cinco turnos de contexto da IA: limpar o log não altera a conversa nem executa ferramentas. Cada registro contém pedido, provedor/modelo, estado, envios à IA (mensagens e schemas), respostas estruturadas, chamadas/argumentos, retornos de ferramentas, duração e erros. Envios seguintes incluem o contexto efetivamente enviado ao modelo. Logs anteriores à atualização não são reconstruídos. Controles manuais de integrações continuam no diagnóstico de Configurações.
+Menu → Log mantém os últimos **50 pedidos ao assistente**, do mais recente ao mais antigo, no armazenamento privado do aparelho (`command-log.json`, escrita atômica, sem backup Android). O histórico é separado do contexto completo da IA: limpar o log não altera a conversa nem executa ferramentas. Cada registro contém pedido, provedor/modelo, estado, envios à IA (mensagens e schemas), respostas estruturadas, chamadas/argumentos, retornos de ferramentas, duração e erros. Envios seguintes incluem o contexto efetivamente enviado ao modelo. Logs anteriores à atualização não são reconstruídos. Controles manuais de integrações continuam no diagnóstico de Configurações.
 
 Os registros atualizam enquanto o pedido está em andamento. Ao reabrir o app, pedidos sem conclusão ficam como interrompidos; isso não prova que uma ação externa foi desfeita. Todos os dados são sanitizados antes da gravação e da cópia: chave conhecida, Bearer e campos de credenciais, inclusive JSON dentro de argumentos/conteúdo. Não são gravados cabeçalhos HTTP. O conteúdo de mensagens e resultados continua sendo pessoal: revise antes de compartilhar.
 
@@ -154,9 +154,11 @@ Testes: `CommandLogsTest` cobre retenção/ordem, reabertura, interrupção, lim
 
 ## Eficiência e correção do ciclo genérico
 
-- Histórico: até cinco turnos completos e 50.000 caracteres serializados. Evicção do mais antigo, sem separar chamadas de seus resultados nem truncar IDs/JSON. O prompt fixo avisa que o histórico pode omitir turnos; o contador exato fica apenas no diagnóstico; referências ausentes exigem esclarecimento. O turno atual e resultados atuais permanecem integrais.
-- Após cinco minutos de inatividade desde o término do último pedido (inclusive erro/cancelamento), o próximo pedido reinicia o contexto. O relógio monotônico inclui suspensão do aparelho; o Log não é apagado. Interações contínuas renovam o prazo, sem expirar mensagens individualmente.
-- A seleção é uma janela por recência e orçamento, não um classificador semântico. Não há chamada extra de resumo nem filtro de ferramentas por palavras-chave que possa esconder capacidades relevantes.
+- Histórico: todos os turnos completos da conversa, incluindo chamadas e resultados. Sem limite local de turnos, caracteres ou inatividade; permanece sujeito à janela de contexto do provedor. Nenhum corte ou resumo automático.
+- Botão lateral (ACTION_ASSIST/VOICE_ASSIST): interrompe o pedido atual, aguarda seu encerramento, limpa o histórico visual e da IA e inicia reconhecimento de voz. Falar e texto continuam a conversa. Reiniciar não desfaz ações já executadas.
+- Configurações → Ferramentas: checklist persistente por ferramenta; a seleção é capturada ao iniciar a conversa. Ferramentas desmarcadas não são anunciadas nem executadas. Uma seleção vazia permite conversar sem ferramentas. Conectar/desconectar Spotify não apaga o histórico.
+- O chat exibe todas as mensagens do usuário e respostas do assistente em uma lista rolável, com streaming na última resposta. Continua em memória durante a sessão e rotação; encerrar o processo descarta a conversa. O Log mantém sua retenção própria.
+- Itens concluídos permanecem na posição original, com texto riscado e atenuado, sem rótulo abaixo.
 - Validação estrutural do lote antes de efeitos: IDs não vazios/únicos no pedido e envelopes de função válidos. Argumentos são validados pelo schema anunciado (tipo, enum, obrigatórios, campos adicionais, limites numéricos e arrays), além das validações de domínio.
 - Falhas do modelo após um lote de ferramentas preservam chamadas e resultados no histórico com indicação de interrupção. Não há repetição automática de ações.
 - Respostas com finish_reason=length/content_filter são rejeitadas antes de despachar suas ferramentas. Erros de transporte informam resultado desconhecido; erros internos incluem a classe, sem expor stack trace.

@@ -1,8 +1,8 @@
 package br.com.assistente.teste
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
-import android.os.SystemClock
 import androidx.compose.runtime.*
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +18,7 @@ import br.com.assistente.teste.integrations.spotify.SpotifyAuth
 import br.com.assistente.teste.integrations.spotify.SpotifyClient
 import br.com.assistente.teste.integrations.spotify.SpotifyIntegration
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +28,16 @@ import okhttp3.OkHttpClient
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
+data class ChatMessage(val role: String, val text: String)
+
 class ChatModel(app: Application) : AndroidViewModel(app) {
+    val messages = mutableStateListOf<ChatMessage>()
+    private fun updateAnswer(text: String) {
+        answer = text
+        if (messages.lastOrNull()?.role == "assistant") {
+            messages[messages.lastIndex] = ChatMessage("assistant", text)
+        }
+    }
     var question by mutableStateOf(""); private set
     var answer by mutableStateOf("Toque em Falar para conversar com o Orbi."); private set
     var busy by mutableStateOf(false); private set
@@ -60,7 +70,41 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     var listsReady by mutableStateOf(false); private set
     var listsBusy by mutableStateOf(false); private set
     var listsError by mutableStateOf<String?>(null); private set
-    private val integrations = IntegrationRegistry(listOf(spotify, android, ListsIntegration(listsRepository), WebSearchIntegration(), PageReadIntegration()))
+    private val toolPreferences = app.getSharedPreferences("orbi-tools", Context.MODE_PRIVATE)
+    var selectedTools by mutableStateOf(toolPreferences.getStringSet("selected", null)?.toSet()); private set
+    private var conversationTools = selectedTools
+    private val integrations = IntegrationRegistry(
+        listOf(spotify, android, ListsIntegration(listsRepository), WebSearchIntegration(), PageReadIntegration()),
+        { conversationTools })
+    val toolCatalog get() = integrations.catalog().map { it.getJSONObject("function") }
+    fun selectTool(name: String, enabled: Boolean) {
+        val selected = (selectedTools ?: toolCatalog.map { it.getString("name") }.toSet()).toMutableSet()
+        if (enabled) selected.add(name) else selected.remove(name)
+        selectedTools = selected.toSet()
+        toolPreferences.edit().putStringSet("selected", selected).apply()
+    }
+    private var restarting = false
+    fun newConversation(ready: () -> Unit = {}) {
+        if (restarting) return
+        restarting = true
+        viewModelScope.launch {
+            try {
+                activeTask?.cancel()
+                client.dispatcher.cancelAll()
+                activeTask?.join()
+                resetConversation()
+                ready()
+            } finally { restarting = false }
+        }
+    }
+    private fun resetConversation() {
+        chat.clearHistory()
+        conversationTools = selectedTools?.toSet()
+        messages.clear()
+        question = ""
+        answer = "Toque em Falar para conversar com o Orbi."
+        diagnostics = ""
+    }
     fun dismissListsError() { listsError = null }
     fun loadLists() = listAction({ listsReady = true }) { listsRepository.load() }
     fun createList(name: String, done: () -> Unit) = listAction(done) { listsRepository.createList(name) }
@@ -86,13 +130,13 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     val agentSettings = AgentSettings(app)
     var llmConfig by mutableStateOf(agentSettings.load()); private set
     private var chat = createChat()
-    private fun createChat() = ChatClient(OpenAiCompatibleClient(client, llmConfig), integrations, agentSettings.prompts(),
-        elapsedRealtime = { SystemClock.elapsedRealtime() })
+    private fun createChat() = ChatClient(OpenAiCompatibleClient(client, llmConfig), integrations, agentSettings.prompts())
     fun configureLlm(config: LlmConfig) {
         check(!busy) { "Aguarde o pedido atual terminar." }
         agentSettings.save(config)
         llmConfig = config
         chat = createChat()
+        resetConversation()
     }
     private var activeTask: Job? = null
     private var pendingSpotifyCallback: Uri? = null
@@ -116,9 +160,12 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
         spotifyClientId = state.second
     }
     fun send(text: String) {
-        if (busy || text.isBlank()) return
+        if (busy || restarting || text.isBlank()) return
+        if (messages.isEmpty()) conversationTools = selectedTools?.toSet()
         question = text
-        answer = "Consultando ${llmConfig.provider}…"
+        messages.add(ChatMessage("user", text))
+        messages.add(ChatMessage("assistant", ""))
+        updateAnswer("Consultando ${llmConfig.provider}…")
         diagnostics = ""
         task {
             val result = withContext(Dispatchers.IO) {
@@ -130,14 +177,15 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val reply = chat.reply(key ?: error("Configure sua chave em Configurações → API."), text,
                         onProgress = { event ->
+                            requestContext.ensureActive()
                             commandLogs.event(id, "Diagnóstico", event, secrets)
-                            viewModelScope.launch { appendDiagnostic(event) }
-                        }, onTrace = { title, detail -> commandLogs.event(id, title, detail, secrets) },
+                            runBlocking(requestContext + Dispatchers.Main.immediate) { appendDiagnostic(event) }
+                        }, onTrace = { title, detail -> requestContext.ensureActive(); commandLogs.event(id, title, detail, secrets) },
                         onUsage = { tokens -> commandLogs.usage(id, tokens) },
                         onText = { partial ->
                             // Apply in order on the UI dispatcher; no detached updates after completion.
                             kotlinx.coroutines.runBlocking(requestContext + Dispatchers.Main.immediate) {
-                                answer = partial.ifEmpty { "Consultando ${llmConfig.provider}…" }
+                                updateAnswer(partial.ifEmpty { "Consultando ${llmConfig.provider}…" })
                             }
                         })
                     commandLogs.event(id, "Resposta final", reply, secrets)
@@ -155,7 +203,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                     throw e
                 }
             }
-            answer = result
+            updateAnswer(result)
         }
     }
 
@@ -183,7 +231,6 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                     integrationStatus = "Conectando ao Spotify…"
                     withContext(Dispatchers.IO) {
                         spotifyAuth.complete(uri)
-                        chat.clearHistory()
                     }
                     appendDiagnostic("Spotify: código validado e tokens salvos.")
                     refreshSpotify()
@@ -212,7 +259,6 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     fun disconnectSpotify() = task(integration = true) {
         withContext(Dispatchers.IO) {
             spotifyAuth.disconnect()
-            chat.clearHistory()
         }
         refreshSpotify()
         integrationStatus = "Spotify desconectado neste aparelho. Para revogar a permissão, remova o Orbi na conta Spotify."
@@ -233,7 +279,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
                     is IllegalStateException, is IllegalArgumentException -> e.message ?: "Não foi possível concluir."
                     else -> "Não foi possível ler as credenciais ou a resposta. Confira as configurações."
                 }
-                if (integration) integrationStatus = "Spotify: $message" else answer = message
+                if (integration) integrationStatus = "Spotify: $message" else updateAnswer(message)
             } finally {
                 try { refreshSpotify() } catch (_: Exception) { spotifyConnected = false }
                 busy = false

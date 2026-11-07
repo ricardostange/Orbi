@@ -3,6 +3,11 @@ package br.com.assistente.teste.ui
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
@@ -67,15 +72,29 @@ fun OrbiApp(model: ChatModel, section: AppSection, navigate: (AppSection) -> Uni
             }) { padding ->
                 when (section) {
                     AppSection.HOME -> Column(Modifier.fillMaxSize().padding(padding).imePadding().padding(horizontal = 24.dp)) {
-                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Spacer(Modifier.height(12.dp))
-                            SelectionContainer { Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                                if (model.question.isNotBlank()) Text(model.question, style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary)
-                                Text(voiceError ?: model.answer, style = MaterialTheme.typography.bodyLarge)
-                            } }
+                        val chatScroll = rememberLazyListState()
+                        LaunchedEffect(model.messages.size, model.answer) {
+                            if (model.messages.isNotEmpty()) chatScroll.animateScrollToItem(model.messages.lastIndex)
+                        }
+                        LazyColumn(Modifier.weight(1f), state = chatScroll,
+                            contentPadding = PaddingValues(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                            items(model.messages) { message ->
+                                SelectionContainer {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(if (message.role == "user") "Você" else "Orbi",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(message.text, style = MaterialTheme.typography.bodyLarge,
+                                            color = if (message.role == "user") MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onSurface)
+                                    }
+                                }
+                            }
+                            if (model.messages.isEmpty()) item { Text(model.answer) }
+                            voiceError?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
                             if (!model.busy && (model.question.isNotBlank() || voiceError != null)) {
-                                TextButton(onClick = { clipboard.setText(AnnotatedString(voiceError ?: model.answer)) }) { Text("Copiar resposta") }
+                                item { TextButton(onClick = { clipboard.setText(AnnotatedString(voiceError ?: model.answer)) }) { Text("Copiar resposta") } }
                             }
                         }
                         if (model.busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -153,6 +172,26 @@ private fun SettingsScreen(model: ChatModel, modifier: Modifier, configure: () -
         Text("Conexões", style = MaterialTheme.typography.titleMedium)
         Text(if (model.spotifyConnected) "Spotify conectado" else "Spotify não conectado", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = integrations, modifier = Modifier.fillMaxWidth()) { Text("Gerenciar integrações") }
+        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+        Text("Ferramentas", style = MaterialTheme.typography.titleMedium)
+        Text("Selecione as ferramentas para novas conversas. A conversa atual mantém sua seleção.",
+            style = MaterialTheme.typography.bodySmall)
+        model.toolCatalog.forEach { tool ->
+            val name = tool.getString("name")
+            val checked = model.selectedTools?.contains(name) != false
+            Row(Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Checkbox,
+                onValueChange = { model.selectTool(name, it) }).padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = checked, onCheckedChange = null)
+                Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(name, style = MaterialTheme.typography.bodyMedium)
+                    Text(tool.optString("description"), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        OutlinedButton(onClick = { model.newConversation() }, enabled = !model.busy,
+            modifier = Modifier.fillMaxWidth()) { Text("Iniciar nova conversa") }
         HorizontalDivider(Modifier.padding(vertical = 12.dp))
         TextButton(onClick = { diagnostics = !diagnostics }) { Text(if (diagnostics) "Ocultar diagnóstico" else "Diagnóstico") }
         if (diagnostics) {

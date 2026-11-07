@@ -12,5 +12,5 @@ class AgentPrompts(read: (String) -> String) {
     fun availability(names: List<String>): String = if (names.isEmpty()) disconnected else
         connected.replace("{{tools}}", names.joinToString()) +
             (if ("spotify" in names) "\n$spotify" else "") +
-            (if ("list_lists" in names) "\n$lists" else "")
+            (if (names.any { it in setOf("list_lists", "create_list", "rename_list", "delete_list", "list_items", "add_item", "remove_item", "set_item_completed") }) "\n$lists" else "")
 }

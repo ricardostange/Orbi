@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                 integrations, { integrations = it })
         }
         if (intent.data != null && intent.action == Intent.ACTION_VIEW) handleSpotify(intent)
-        else if (savedInstanceState == null && isAssist(intent)) window.decorView.post { listen() }
+        else if (savedInstanceState == null && isAssist(intent)) window.decorView.post { assist() }
     }
     override fun onStart() {
         super.onStart()
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent.data != null && intent.action == Intent.ACTION_VIEW) handleSpotify(intent)
-        else if (isAssist(intent)) listen()
+        else if (isAssist(intent)) assist()
     }
     private fun handleSpotify(intent: Intent) {
         intent.data?.let(model::spotifyCallback)
@@ -72,6 +72,12 @@ class MainActivity : ComponentActivity() {
         if (model.busy || listening || text.isBlank()) return
         voiceError = null
         model.send(text)
+    }
+    private fun assist() {
+        if (listening) return
+        section = AppSection.HOME
+        integrations = false
+        model.newConversation { listen() }
     }
     private fun listen() {
         if (model.busy || listening) return

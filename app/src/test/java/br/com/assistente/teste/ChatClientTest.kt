@@ -16,9 +16,9 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ChatClientTest {
-    private var nowMs = 0L
-    private var responseDurationMs = 0L
     private var spotifyConnected = false
+    private var selectedTools: Set<String>? = null
+    private val offeredTools = mutableListOf<JSONArray>()
     private var executed = 0
     private val events = mutableListOf<String>()
     private val requests = mutableListOf<JSONArray>()
@@ -26,38 +26,35 @@ class ChatClientTest {
     private val client = ChatClient(OpenAiCompatibleClient(OkHttpClient.Builder().addInterceptor { chain ->
         val buffer = Buffer()
         chain.request().body!!.writeTo(buffer)
-        requests.add(JSONObject(buffer.readUtf8()).getJSONArray("messages"))
+        val body = JSONObject(buffer.readUtf8())
+        requests.add(body.getJSONArray("messages"))
+        offeredTools.add(body.optJSONArray("tools") ?: JSONArray())
         val (status, message) = responses.removeFirst()
-        nowMs += responseDurationMs
         Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
             .code(status).message("test")
             .body("""{"choices":[{"message":$message}]}""".toResponseBody()).build()
     }.build(), LlmConfig.fromJson(JSONObject(File("src/main/assets/agent/provider.json").readText()))), IntegrationRegistry(listOf(SpotifyIntegration({ spotifyConnected }, SpotifyTransport { _, _, _, _ ->
         executed++
         "{\"ok\":true}"
-    }))), AgentPrompts { File("src/main/assets/agent/prompts/$it").readText() }, elapsedRealtime = { nowMs })
+    })), { selectedTools }), AgentPrompts { File("src/main/assets/agent/prompts/$it").readText() })
+
+    @Test fun `deselected tool is neither offered nor executed even if model requests it`() {
+        spotifyConnected = true
+        selectedTools = emptySet()
+        responses.addLast(200 to """{"role":"assistant","tool_calls":[{"id":"blocked","type":"function","function":{"name":"spotify","arguments":"{\"action\":\"pause\"}"}}]}""")
+        answer("Ferramenta desmarcada")
+        client.reply("key", "Pause")
+        assertEquals(0, executed)
+        assertTrue(offeredTools.all { it.length() == 0 })
+        assertTrue(requests.last().getJSONObject(3).getString("content").contains("não disponibilizada"))
+    }
 
     private fun answer(text: String) {
         responses.addLast(200 to JSONObject().put("role", "assistant").put("content", text).toString())
     }
 
-    @Test fun `expires history exactly five minutes after completion`() {
-        responseDurationMs = 60_000L
-        answer("Primeira resposta")
-        client.reply("key", "Primeiro pedido")
-        nowMs += 299_999L
-        answer("Segunda resposta")
-        client.reply("key", "Segundo pedido")
-        assertEquals(4, requests.last().length())
-        nowMs += 300_000L
-        answer("Nova conversa")
-        client.reply("key", "Novo pedido", events::add)
-        assertEquals(2, requests.last().length())
-        assertTrue(events.any { it.contains("5 minutos de inatividade") })
-    }
-
     @Test fun `retains turns larger than the old character budget`() {
-        answer("x".repeat(20_000))
+        answer("x".repeat(60_000))
         client.reply("key", "Pesquisa")
         answer("Ok")
         client.reply("key", "Continue")
@@ -76,15 +73,15 @@ class ChatClientTest {
         assertEquals("Segundo pedido", messages.getJSONObject(3).getString("content"))
     }
 
-    @Test fun `keeps only five complete previous turns`() {
+    @Test fun `keeps every previous turn beyond five`() {
         repeat(7) {
             answer("Resposta $it")
             client.reply("key", "Pedido $it")
         }
         val messages = requests.last()
-        assertEquals(12, messages.length())
-        assertEquals("Pedido 1", messages.getJSONObject(1).getString("content"))
-        assertEquals("Pedido 6", messages.getJSONObject(11).getString("content"))
+        assertEquals(14, messages.length())
+        assertEquals("Pedido 0", messages.getJSONObject(1).getString("content"))
+        assertEquals("Pedido 6", messages.getJSONObject(13).getString("content"))
     }
 
     @Test fun `preserves tool calls and error results without executing them again`() {
@@ -101,12 +98,12 @@ class ChatClientTest {
         assertEquals(3, requests.size)
     }
 
-    @Test fun `clear and size limit remove whole turns`() {
+    @Test fun `only explicit reset removes large complete turns`() {
         answer("x".repeat(60_000))
         client.reply("key", "Pedido enorme")
         answer("Ok")
         client.reply("key", "Novo pedido")
-        assertEquals(2, requests.last().length())
+        assertEquals(4, requests.last().length())
         client.clearHistory()
         answer("Ok")
         client.reply("key", "Sem histórico")
@@ -173,14 +170,14 @@ class ChatClientTest {
     }
 
 
-    @Test fun `history budget evicts whole turns and declares missing context`() {
+    @Test fun `large history preserves the first turn and stable system prompt`() {
         repeat(5) {
             answer("Resposta $it " + "x".repeat(13_000))
             client.reply("key", "Pedido $it")
         }
         val messages = requests.last()
         assertEquals(requests.first().getJSONObject(0).getString("content"), messages.getJSONObject(0).getString("content"))
-        assertEquals("Pedido 1", messages.getJSONObject(1).getString("content"))
+        assertEquals("Pedido 0", messages.getJSONObject(1).getString("content"))
         assertTrue(events.none { it.contains("private-key") })
     }
 

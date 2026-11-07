@@ -8,49 +8,17 @@ import org.json.JSONObject
 class ChatClient(
     private val gateway: LlmGateway,
     private val integrations: IntegrationRegistry,
-    private val prompts: AgentPrompts,
-    private val elapsedRealtime: () -> Long = { System.nanoTime() / 1_000_000 }
+    private val prompts: AgentPrompts
 ) {
     private val recentTurns = ArrayDeque<String>()
-    private var omittedTurns = 0
-    private val historyCharacterBudget = 50_000
-    private val historyIdleTimeoutMs = 5 * 60 * 1_000L
-    private var lastReplyFinishedAt: Long? = null
 
-    fun clearHistory() {
-        recentTurns.clear()
-        omittedTurns = 0
-        lastReplyFinishedAt = null
-    }
+    fun clearHistory() { recentTurns.clear() }
 
-    private fun remember(turn: JSONArray) {
-        val serialized = turn.toString()
-        recentTurns.addLast(serialized)
-        while (recentTurns.size > 5 || recentTurns.sumOf { it.length } > historyCharacterBudget) {
-            recentTurns.removeFirst()
-            omittedTurns++
-        }
-    }
+    private fun remember(turn: JSONArray) { recentTurns.addLast(turn.toString()) }
 
     fun reply(key: String, text: String, onProgress: (String) -> Unit = {},
         onTrace: (String, String) -> Unit = { _, _ -> }, onUsage: (Long?) -> Unit = {},
         onText: (String) -> Unit = {}): String {
-        val finishedAt = lastReplyFinishedAt
-        if (finishedAt != null && elapsedRealtime() - finishedAt >= historyIdleTimeoutMs) {
-            clearHistory()
-            onProgress("Contexto reiniciado após 5 minutos de inatividade.")
-        }
-        return try {
-            replyWithHistory(key, text, onProgress, onTrace, onUsage, onText)
-        } finally {
-            // Start the idle interval after completion, including failed/cancelled requests.
-            lastReplyFinishedAt = elapsedRealtime()
-        }
-    }
-
-    private fun replyWithHistory(key: String, text: String, onProgress: (String) -> Unit,
-        onTrace: (String, String) -> Unit, onUsage: (Long?) -> Unit,
-        onText: (String) -> Unit): String {
         val messages = JSONArray().put(JSONObject().put("role", "system").put("content", prompts.system))
         for (turn in recentTurns) {
             val previous = JSONArray(turn)
@@ -62,8 +30,8 @@ class ChatClient(
         val toolNames = (0 until tools.length()).map { tools.getJSONObject(it).getJSONObject("function").getString("name") }
         val availability = prompts.availability(toolNames)
         messages.getJSONObject(0).put("content", messages.getJSONObject(0).getString("content") + " " + availability)
-        onProgress("Contexto: ${recentTurns.size} turnos anteriores; ${recentTurns.sumOf { it.length }} caracteres; $omittedTurns omitidos.")
-        onProgress("Ferramentas disponíveis: ${toolNames.joinToString().ifBlank { "nenhuma (conecte o Spotify em Integrações)" }}")
+        onProgress("Contexto: ${recentTurns.size} turnos anteriores; ${recentTurns.sumOf { it.length }} caracteres; 0 omitidos.")
+        onProgress("Ferramentas disponíveis: ${toolNames.joinToString().ifBlank { "nenhuma selecionada ou conectada" }}")
         var repairedTextCall = false
         var calls = 0
         val seenCallIds = mutableSetOf<String>()
@@ -101,7 +69,7 @@ class ChatClient(
                 check(content.isNotEmpty() && content != "null") { "O provedor retornou uma resposta vazia." }
                 if (looksLikeTextCall(content)) {
                     onProgress("Chamada recebida como texto: não executada.")
-                    check(tools.length() > 0) { "Spotify não conectado. A IA escreveu uma chamada como texto, mas nenhuma ação foi executada. Conecte em Configurações → Integrações." }
+                    check(tools.length() > 0) { "Nenhuma ferramenta disponível: não conectado ou não selecionado. A chamada escrita como texto não foi executada." }
                     check(!repairedTextCall) { "A IA repetiu uma chamada como texto em vez de usar tool_calls. Essa chamada não foi executada. Copie o diagnóstico para investigar." }
                     repairedTextCall = true
                     messages.put(message)
@@ -142,6 +110,7 @@ class ChatClient(
                 val toolStarted = System.nanoTime()
                 onTrace("Chamada de ferramenta · $name", call.toString())
                 val result = try {
+                    require(name in toolNames) { "Ferramenta não disponibilizada nesta conversa." }
                     val args = JSONObject(function.getString("arguments"))
                     onProgress("Executando ferramenta: $name")
                     integrations.execute(name, args)
