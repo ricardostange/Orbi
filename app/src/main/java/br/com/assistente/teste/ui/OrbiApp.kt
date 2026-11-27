@@ -170,6 +170,7 @@ private fun SettingsScreen(model: ChatModel, modifier: Modifier, configure: () -
         OutlinedButton(onClick = configure, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) { Text("Configurar API e modelo") }
         Spacer(Modifier.height(12.dp))
         Text("Conexões", style = MaterialTheme.typography.titleMedium)
+        Text(if (model.calendarAccess) "Google Agenda com acesso autorizado" else "Google Agenda sem permissão", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(if (model.spotifyConnected) "Spotify conectado" else "Spotify não conectado", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = integrations, modifier = Modifier.fillMaxWidth()) { Text("Gerenciar integrações") }
         HorizontalDivider(Modifier.padding(vertical = 12.dp))
@@ -190,8 +191,6 @@ private fun SettingsScreen(model: ChatModel, modifier: Modifier, configure: () -
                 }
             }
         }
-        OutlinedButton(onClick = { model.newConversation() }, enabled = !model.busy,
-            modifier = Modifier.fillMaxWidth()) { Text("Iniciar nova conversa") }
         HorizontalDivider(Modifier.padding(vertical = 12.dp))
         TextButton(onClick = { diagnostics = !diagnostics }) { Text(if (diagnostics) "Ocultar diagnóstico" else "Diagnóstico") }
         if (diagnostics) {
