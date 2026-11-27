@@ -1,6 +1,13 @@
 package br.com.assistente.teste.integrations
 
+import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import br.com.assistente.teste.integrations.calendar.CalendarIntegration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +23,12 @@ import br.com.assistente.teste.integrations.spotify.SpotifyAuth
 
 @Composable
 fun IntegrationsDialog(model: ChatModel, open: (Uri) -> Unit, close: () -> Unit) {
+    val context = LocalContext.current
+    var requested by rememberSaveable { mutableStateOf(false) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        requested = true
+        model.refreshCalendarAccess()
+    }
     val clipboard = LocalClipboardManager.current
     var advanced by remember { mutableStateOf(false) }
     var clientId by remember(model.spotifyClientId) { mutableStateOf(model.spotifyClientId) }
@@ -24,6 +37,16 @@ fun IntegrationsDialog(model: ChatModel, open: (Uri) -> Unit, close: () -> Unit)
         title = { Text("Integrações") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Google Agenda", style = MaterialTheme.typography.titleLarge)
+                Text(if (model.calendarAccess) "Acesso à agenda autorizado" else "Autorize o Orbi a consultar e alterar compromissos.")
+                Text("Os compromissos consultados são enviados ao modelo configurado e aparecem no log da conversa.")
+                if (!model.calendarAccess) {
+                    Button(onClick = { permission.launch(CalendarIntegration.permissions) }) { Text("Permitir acesso à agenda") }
+                    if (requested) TextButton(onClick = {
+                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName)))
+                    }) { Text("Abrir permissões do Orbi") }
+                }
+                HorizontalDivider()
                 Text("Spotify", style = MaterialTheme.typography.titleLarge)
                 Text(if (model.spotifyConnected) "Conta conectada" else "Conta não conectada")
                 SelectionContainer { Text(model.integrationStatus) }

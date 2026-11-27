@@ -1,5 +1,6 @@
 package br.com.assistente.teste
 
+import br.com.assistente.teste.integrations.calendar.CalendarIntegration
 import android.app.Application
 import android.content.Context
 import android.net.Uri
@@ -49,6 +50,8 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     val logs = commandLogs.entries
     val logError = commandLogs.error
     fun clearLogs() { if (!busy) viewModelScope.launch(Dispatchers.IO) { commandLogs.clear() } }
+    var calendarAccess by mutableStateOf(CalendarIntegration.hasAccess(app)); private set
+    fun refreshCalendarAccess() { calendarAccess = CalendarIntegration.hasAccess(getApplication()) }
     val keys = ApiKeyStore(app)
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS).callTimeout(150, TimeUnit.SECONDS)
@@ -74,7 +77,7 @@ class ChatModel(app: Application) : AndroidViewModel(app) {
     var selectedTools by mutableStateOf(toolPreferences.getStringSet("selected", null)?.toSet()); private set
     private var conversationTools = selectedTools
     private val integrations = IntegrationRegistry(
-        listOf(spotify, android, ListsIntegration(listsRepository), WebSearchIntegration(), PageReadIntegration()),
+        listOf(spotify, android, CalendarIntegration(app), ListsIntegration(listsRepository), WebSearchIntegration(), PageReadIntegration()),
         { conversationTools })
     val toolCatalog get() = integrations.catalog().map { it.getJSONObject("function") }
     fun selectTool(name: String, enabled: Boolean) {
