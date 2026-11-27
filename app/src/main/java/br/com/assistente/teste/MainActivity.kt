@@ -52,6 +52,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         model.browserReturned()
+        model.refreshCalendarAccess()
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
